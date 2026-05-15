@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale|default('it') }}">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; color: #222; margin: 0; padding: 0; background: #f5f5f5; }
+        .wrapper { max-width: 640px; margin: 30px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+        .header { background: #1a1a2e; color: #fff; padding: 24px 30px; }
+        .header h1 { margin: 0; font-size: 1.2rem; }
+        .header p { margin: 6px 0 0; opacity: .7; font-size: .85rem; }
+        .body { padding: 28px 30px; }
+        .meta { background: #f9f9f9; border-radius: 6px; padding: 14px 18px; margin-bottom: 24px; font-size: .9rem; }
+        .meta strong { display: inline-block; width: 90px; color: #555; }
+        .chat { border-top: 1px solid #eee; padding-top: 20px; }
+        .chat h2 { font-size: 1rem; color: #555; margin: 0 0 16px; }
+        .msg { margin-bottom: 14px; }
+        .msg .role { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+        .msg.user .role { color: #1a1a2e; }
+        .msg.assistant .role { color: #888; }
+        .msg .text { background: #f0f0f0; border-radius: 8px; padding: 10px 14px; font-size: .9rem; line-height: 1.5; white-space: pre-wrap; }
+        .msg.user .text { background: #1a1a2e; color: #fff; }
+        .footer { padding: 16px 30px; background: #f5f5f5; font-size: .78rem; color: #999; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="header">
+        <h1>{{ 'email.header.title'|trans }}</h1>
+        <p>{{ 'email.header.subtitle'|trans({'%projectName%': projectName}) }} — {{ date|date('d/m/Y H:i') }}</p>
+    </div>
+
+    <div class="body">
+        <div class="meta">
+            <div><strong>{{ 'email.meta.name'|trans }}</strong> {{ name }}</div>
+            <div><strong>{{ 'email.meta.email'|trans }}</strong> <a href="mailto:{{ userEmail }}">{{ userEmail }}</a></div>
+            <div><strong>{{ 'email.meta.project'|trans }}</strong> {{ projectName }}</div>
+        </div>
+
+        <div class="chat">
+            <h2>{{ 'email.chat.title'|trans }}</h2>
+            {% for msg in history %}
+            <div class="msg {{ msg.role }}">
+                <div class="role">{% if msg.role == 'user' %}{{ name }}{% else %}{{ 'email.role.assistant'|trans }}{% endif %}</div>
+                <div class="text">{{ msg.text }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="footer">
+        {{ 'email.footer'|trans({'%email%': userEmail}) }}
+    </div>
+</div>
+</body>
+</html>

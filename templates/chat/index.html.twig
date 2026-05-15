@@ -1,0 +1,362 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'chat.page_title'|trans({'%projectName%': projectName}) }}{% endblock %}
+
+{% block stylesheets %}
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #f5f5f5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    .chat-container {
+        width: 100%;
+        max-width: 760px;
+        height: 90vh;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0,0,0,.1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .chat-header {
+        padding: 18px 24px;
+        background: #1a1a2e;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: .3px;
+    }
+
+    .chat-header span {
+        font-size: .8rem;
+        font-weight: 400;
+        opacity: .6;
+        display: block;
+        margin-top: 2px;
+    }
+
+    .chat-header a {
+        float: right;
+        font-size: .8rem;
+        font-weight: 400;
+        color: rgba(255,255,255,.6);
+        text-decoration: none;
+        margin-top: 4px;
+    }
+
+    .chat-header a:hover { color: #fff; }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .message {
+        max-width: 78%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        line-height: 1.55;
+        font-size: .92rem;
+        white-space: pre-wrap;
+    }
+
+    .message.user {
+        background: #1a1a2e;
+        color: #fff;
+        align-self: flex-end;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+        background: #f0f0f0;
+        color: #222;
+        align-self: flex-start;
+        border-bottom-left-radius: 4px;
+    }
+
+    .message.typing {
+        background: #f0f0f0;
+        color: #999;
+        align-self: flex-start;
+        font-style: italic;
+    }
+
+    .email-card {
+        align-self: flex-start;
+        background: #fff;
+        border: 2px solid #1a1a2e;
+        border-radius: 12px;
+        padding: 18px 20px;
+        max-width: 88%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .email-card p {
+        font-size: .9rem;
+        color: #333;
+        line-height: 1.4;
+        margin-bottom: 4px;
+    }
+
+    .email-card input {
+        padding: 9px 14px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: .9rem;
+        outline: none;
+        transition: border-color .2s;
+        width: 100%;
+    }
+
+    .email-card input:focus { border-color: #1a1a2e; }
+
+    .email-card-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .btn-primary {
+        padding: 9px 18px;
+        background: #1a1a2e;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: .88rem;
+        cursor: pointer;
+        transition: opacity .2s;
+    }
+
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-secondary {
+        padding: 9px 18px;
+        background: transparent;
+        color: #666;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: .88rem;
+        cursor: pointer;
+    }
+
+    .btn-secondary:hover { border-color: #999; color: #333; }
+
+    .email-card .field-error {
+        font-size: .8rem;
+        color: #c0392b;
+        margin-top: -6px;
+    }
+
+    .chat-form {
+        display: flex;
+        gap: 10px;
+        padding: 16px 20px;
+        border-top: 1px solid #eee;
+        background: #fff;
+    }
+
+    .chat-form input {
+        flex: 1;
+        padding: 10px 16px;
+        border: 1px solid #ddd;
+        border-radius: 24px;
+        font-size: .92rem;
+        outline: none;
+        transition: border-color .2s;
+    }
+
+    .chat-form input:focus { border-color: #1a1a2e; }
+
+    .chat-form button {
+        padding: 10px 22px;
+        background: #1a1a2e;
+        color: #fff;
+        border: none;
+        border-radius: 24px;
+        font-size: .92rem;
+        cursor: pointer;
+        transition: opacity .2s;
+    }
+
+    .chat-form button:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="chat-container">
+    <div class="chat-header">
+        <a href="{{ path('home') }}">{{ 'chat.header.back'|trans }}</a>
+        {{ projectName }}
+        <span>{{ 'chat.header.subtitle'|trans }}</span>
+    </div>
+
+    <div class="chat-messages" id="messages">
+        <div class="message assistant">{{ 'chat.welcome'|trans({'%projectName%': projectName}) }}</div>
+    </div>
+
+    <form class="chat-form" id="chat-form">
+        <input type="text" id="user-input" placeholder="{{ 'chat.input.placeholder'|trans }}" autocomplete="off" />
+        <button type="submit" id="send-btn">{{ 'chat.send'|trans }}</button>
+    </form>
+</div>
+
+<script>
+const form = document.getElementById('chat-form');
+const input = document.getElementById('user-input');
+const btn = document.getElementById('send-btn');
+const messagesEl = document.getElementById('messages');
+
+const i18n = {
+    errorUnknown:       {{ 'chat.error.unknown'|trans|json_encode|raw }},
+    errorConnection:    {{ 'chat.error.connection'|trans|json_encode|raw }},
+    emailCardIntro:     {{ 'email_card.intro'|trans|json_encode|raw }},
+    emailNamePlaceholder: {{ 'email_card.name_placeholder'|trans|json_encode|raw }},
+    emailEmailPlaceholder: {{ 'email_card.email_placeholder'|trans|json_encode|raw }},
+    emailSubmit:        {{ 'email_card.submit'|trans|json_encode|raw }},
+    emailSubmitting:    {{ 'email_card.submitting'|trans|json_encode|raw }},
+    emailCancel:        {{ 'email_card.cancel'|trans|json_encode|raw }},
+    emailCancelMsg:     {{ 'email_card.cancel_message'|trans|json_encode|raw }},
+    emailSuccess:       {{ 'email_card.success'|trans|json_encode|raw }},
+    emailErrorSend:     {{ 'email_card.error.send'|trans|json_encode|raw }},
+    emailErrorConn:     {{ 'email_card.error.connection'|trans|json_encode|raw }},
+    emailErrorName:     {{ 'email_card.error.name'|trans|json_encode|raw }},
+    emailErrorEmail:    {{ 'email_card.error.email'|trans|json_encode|raw }},
+};
+
+const history = [];
+
+function scrollBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function appendMessage(text, role) {
+    const div = document.createElement('div');
+    div.className = 'message ' + role;
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    scrollBottom();
+    return div;
+}
+
+function showEmailCard() {
+    const card = document.createElement('div');
+    card.className = 'email-card';
+    card.id = 'email-card';
+    card.innerHTML = `
+        <p>${i18n.emailCardIntro}</p>
+        <input type="text" id="email-name" placeholder="${i18n.emailNamePlaceholder}" />
+        <input type="email" id="email-address" placeholder="${i18n.emailEmailPlaceholder}" />
+        <div class="field-error" id="email-error"></div>
+        <div class="email-card-actions">
+            <button class="btn-primary" id="email-send-btn">${i18n.emailSubmit}</button>
+            <button class="btn-secondary" id="email-cancel-btn">${i18n.emailCancel}</button>
+        </div>
+    `;
+    messagesEl.appendChild(card);
+    scrollBottom();
+
+    document.getElementById('email-send-btn').addEventListener('click', submitEmail);
+    document.getElementById('email-cancel-btn').addEventListener('click', () => {
+        card.remove();
+        appendMessage(i18n.emailCancelMsg, 'assistant');
+    });
+}
+
+async function submitEmail() {
+    const name = document.getElementById('email-name').value.trim();
+    const email = document.getElementById('email-address').value.trim();
+    const errorEl = document.getElementById('email-error');
+    const sendBtn = document.getElementById('email-send-btn');
+
+    errorEl.textContent = '';
+
+    if (!name) { errorEl.textContent = i18n.emailErrorName; return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errorEl.textContent = i18n.emailErrorEmail;
+        return;
+    }
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = i18n.emailSubmitting;
+
+    try {
+        const res = await fetch('{{ path('chat_send_email') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, history }),
+        });
+
+        const data = await res.json();
+        document.getElementById('email-card').remove();
+
+        if (data.success) {
+            appendMessage(i18n.emailSuccess.replace('%name%', name), 'assistant');
+        } else {
+            appendMessage(i18n.emailErrorSend, 'assistant');
+        }
+    } catch {
+        document.getElementById('email-send-btn').disabled = false;
+        document.getElementById('email-send-btn').textContent = i18n.emailSubmit;
+        document.getElementById('email-error').textContent = i18n.emailErrorConn;
+    }
+}
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+
+    document.getElementById('email-card')?.remove();
+
+    appendMessage(text, 'user');
+    history.push({ role: 'user', text });
+    input.value = '';
+    btn.disabled = true;
+
+    const typing = appendMessage('...', 'typing');
+
+    try {
+        const res = await fetch('{{ path('chat_message') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text }),
+        });
+
+        const data = await res.json();
+        typing.remove();
+
+        const reply = data.reply ?? data.error ?? i18n.errorUnknown;
+        appendMessage(reply, 'assistant');
+        history.push({ role: 'assistant', text: reply });
+
+        if (data.offer_email) {
+            showEmailCard();
+        }
+    } catch {
+        typing.remove();
+        appendMessage(i18n.errorConnection, 'assistant');
+    } finally {
+        btn.disabled = false;
+        input.focus();
+    }
+});
+</script>
+{% endblock %}

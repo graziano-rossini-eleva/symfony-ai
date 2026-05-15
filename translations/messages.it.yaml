@@ -1,0 +1,62 @@
+# Home / Upload
+home.page_title: 'Assistente Tecnico — Carica documentazione'
+home.title: 'Assistente Tecnico'
+home.subtitle: 'Carica un file Markdown con la documentazione del progetto'
+home.upload.label: 'File di documentazione (.md)'
+home.upload.button: 'Avvia chat'
+
+upload.error.invalid_file: 'Il file deve essere in formato Markdown (.md).'
+upload.error.empty_file: 'Il file è vuoto.'
+
+# Chat
+chat.page_title: '%projectName% — Assistente Tecnico'
+chat.header.back: '← Carica altro file'
+chat.header.subtitle: 'Risposte basate sulla documentazione caricata'
+chat.welcome: "Ciao! Sono l'assistente tecnico per %projectName%. Come posso aiutarti?"
+chat.input.placeholder: 'Fai una domanda sulla documentazione...'
+chat.send: 'Invia'
+
+# Email card (UI)
+email_card.intro: '📧 Vuoi inviare una richiesta al nostro team di supporto? Inserisci i tuoi dati e ti risponderemo via email.'
+email_card.name_placeholder: 'Il tuo nome'
+email_card.email_placeholder: 'La tua email'
+email_card.submit: 'Invia richiesta'
+email_card.submitting: 'Invio in corso...'
+email_card.cancel: 'No, grazie'
+email_card.cancel_message: 'Ok, nessun problema! Se cambi idea puoi chiedermelo in qualsiasi momento.'
+email_card.success: 'Perfetto, %name%! La tua richiesta è stata inviata al team di supporto. Ti risponderemo al più presto.'
+email_card.error.name: 'Inserisci il tuo nome.'
+email_card.error.email: 'Inserisci un indirizzo email valido.'
+email_card.error.send: "Si è verificato un errore nell'invio. Riprova più tardi."
+email_card.error.connection: 'Errore di connessione. Riprova.'
+
+# Chat generic errors
+chat.error.unknown: 'Errore sconosciuto.'
+chat.error.connection: 'Errore di connessione. Riprova.'
+
+# Controller / API errors
+error.rate_limit: 'Troppe richieste in poco tempo. Attendi qualche secondo e riprova.'
+error.session_expired: 'Sessione scaduta. Torna alla home e carica nuovamente il file.'
+error.empty_message: 'Messaggio vuoto.'
+error.invalid_contact_data: 'Nome e indirizzo email validi sono obbligatori.'
+
+# Email subject
+email.subject: 'Richiesta supporto: %projectName% — %name%'
+
+# Email template
+email.header.title: 'Nuova richiesta di supporto'
+email.header.subtitle: 'Progetto: %projectName%'
+email.meta.name: 'Nome:'
+email.meta.email: 'Email:'
+email.meta.project: 'Progetto:'
+email.chat.title: 'Trascrizione conversazione'
+email.role.assistant: 'Assistente'
+email.footer: 'Email generata automaticamente dal sistema di chat support. Rispondi a %email%.'
+
+# Transcript (allegato .txt)
+transcript.header: '=== Chat Support Transcript ==='
+transcript.date: 'Data: %date%'
+transcript.project: 'Progetto: %project%'
+transcript.user_info: 'Utente: %name% <%email%>'
+transcript.role.user: 'Utente (%name%)'
+transcript.role.assistant: 'Assistente'

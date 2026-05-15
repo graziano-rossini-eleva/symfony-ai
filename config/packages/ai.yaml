@@ -1,0 +1,5 @@
+ai:
+    agent:
+        default:
+            platform: 'ai.platform.anthropic'
+            model: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
