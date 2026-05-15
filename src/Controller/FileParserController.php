@@ -9,7 +9,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -21,7 +20,6 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * All routes require an authenticated user with at least ROLE_USER.
  */
 #[Route('/file-parser')]
-#[IsGranted('ROLE_USER')]
 class FileParserController extends AbstractController
 {
     /** Maximum allowed PDF upload size: 10 MB. */
