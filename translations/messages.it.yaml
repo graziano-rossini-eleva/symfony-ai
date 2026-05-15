@@ -1,23 +1,42 @@
-# Home / Upload
-home.page_title: 'Assistente Tecnico — Carica documentazione'
-home.title: 'Assistente Tecnico'
-home.subtitle: 'Carica un file Markdown con la documentazione del progetto'
-home.upload.label: 'File di documentazione (.md)'
-home.upload.button: 'Avvia chat'
+# Home — feature selection
+home.page_title: 'Symfony AI — Demo'
+home.title: 'Symfony AI Playground'
+home.subtitle: 'Seleziona una funzione da testare'
+home.feature.doc_chat.title: 'Chat Documentazione'
+home.feature.doc_chat.description: 'Carica un file Markdown e interroga l''AI sulla documentazione del tuo progetto.'
+home.feature.doc_chat.button: 'Avvia →'
+home.feature.file_parser.title: 'Parser di File'
+home.feature.file_parser.description: 'Carica PDF, CSV o DOCX e lascia che l''AI estragga dati strutturati.'
+home.feature.dql.title: 'Assistente DQL'
+home.feature.dql.description: 'Interroga il database in linguaggio naturale: l''AI genera la query in sola lettura.'
+home.feature.coming_soon: 'In arrivo'
 
-upload.error.invalid_file: 'Il file deve essere in formato Markdown (.md).'
-upload.error.empty_file: 'Il file è vuoto.'
+# Doc Chat — upload
+doc_chat.page_title: 'Chat Documentazione — Carica file'
+doc_chat.back: 'Torna alla home'
+doc_chat.upload.title: 'Chat Documentazione'
+doc_chat.upload.subtitle: 'Carica un file Markdown con la documentazione del progetto'
+doc_chat.upload.label: 'File di documentazione (.md)'
+doc_chat.upload.button: 'Avvia chat'
 
-# Chat
-chat.page_title: '%projectName% — Assistente Tecnico'
-chat.header.back: '← Carica altro file'
-chat.header.subtitle: 'Risposte basate sulla documentazione caricata'
-chat.welcome: "Ciao! Sono l'assistente tecnico per %projectName%. Come posso aiutarti?"
-chat.input.placeholder: 'Fai una domanda sulla documentazione...'
-chat.send: 'Invia'
+# Doc Chat — upload errors
+doc_chat.error.invalid_csrf: 'Token di sicurezza non valido. Ricarica la pagina e riprova.'
+doc_chat.error.invalid_file: 'Il file deve essere in formato Markdown (.md).'
+doc_chat.error.empty_file: 'Il file è vuoto.'
+doc_chat.error.file_too_large: 'Il file supera il limite di 512 KB. Carica un documento più piccolo.'
+
+# Doc Chat — chat interface
+doc_chat.chat.page_title: '%projectName% — Chat Documentazione'
+doc_chat.chat.back: '← Home'
+doc_chat.chat.subtitle: 'Risposte basate sulla documentazione caricata'
+doc_chat.chat.welcome: "Ciao! Sono l'assistente tecnico per %projectName%. Come posso aiutarti?"
+doc_chat.chat.input.placeholder: 'Fai una domanda sulla documentazione...'
+doc_chat.chat.send: 'Invia'
+doc_chat.chat.error.unknown: 'Errore sconosciuto.'
+doc_chat.chat.error.connection: 'Errore di connessione. Riprova.'
 
 # Email card (UI)
-email_card.intro: '📧 Vuoi inviare una richiesta al nostro team di supporto? Inserisci i tuoi dati e ti risponderemo via email.'
+email_card.intro: 'Vuoi inviare una richiesta al nostro team di supporto? Inserisci i tuoi dati e ti risponderemo via email.'
 email_card.name_placeholder: 'Il tuo nome'
 email_card.email_placeholder: 'La tua email'
 email_card.submit: 'Invia richiesta'
@@ -30,15 +49,12 @@ email_card.error.email: 'Inserisci un indirizzo email valido.'
 email_card.error.send: "Si è verificato un errore nell'invio. Riprova più tardi."
 email_card.error.connection: 'Errore di connessione. Riprova.'
 
-# Chat generic errors
-chat.error.unknown: 'Errore sconosciuto.'
-chat.error.connection: 'Errore di connessione. Riprova.'
-
 # Controller / API errors
 error.rate_limit: 'Troppe richieste in poco tempo. Attendi qualche secondo e riprova.'
 error.session_expired: 'Sessione scaduta. Torna alla home e carica nuovamente il file.'
 error.empty_message: 'Messaggio vuoto.'
 error.invalid_contact_data: 'Nome e indirizzo email validi sono obbligatori.'
+error.invalid_request: 'Corpo della richiesta non valido.'
 
 # Email subject
 email.subject: 'Richiesta supporto: %projectName% — %name%'
@@ -60,3 +76,13 @@ transcript.project: 'Progetto: %project%'
 transcript.user_info: 'Utente: %name% <%email%>'
 transcript.role.user: 'Utente (%name%)'
 transcript.role.assistant: 'Assistente'
+
+# File Parser placeholder
+file_parser.page_title: 'Parser di File — In arrivo'
+file_parser.title: 'Parser di File'
+file_parser.description: 'Questa funzione permetterà di caricare documenti (PDF, CSV, DOCX) e di estrarre dati strutturati tramite AI.'
+
+# DQL Assistant placeholder
+dql.page_title: 'Assistente DQL — In arrivo'
+dql.title: 'Assistente DQL'
+dql.description: 'Questa funzione permetterà di interrogare il database in linguaggio naturale con query generate dall''AI in sola lettura.'

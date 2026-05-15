@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service\AI;
+namespace App\Service\DocChat;
 
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Platform\Exception\RateLimitExceededException;

@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'chat.page_title'|trans({'%projectName%': projectName}) }}{% endblock %}
+{% block title %}{{ 'doc_chat.chat.page_title'|trans({'%projectName%': projectName}) }}{% endblock %}
 
 {% block stylesheets %}
 <style>
@@ -203,18 +203,18 @@
 {% block body %}
 <div class="chat-container">
     <div class="chat-header">
-        <a href="{{ path('home') }}">{{ 'chat.header.back'|trans }}</a>
+        <a href="{{ path('home') }}">{{ 'doc_chat.chat.back'|trans }}</a>
         {{ projectName }}
-        <span>{{ 'chat.header.subtitle'|trans }}</span>
+        <span>{{ 'doc_chat.chat.subtitle'|trans }}</span>
     </div>
 
     <div class="chat-messages" id="messages">
-        <div class="message assistant">{{ 'chat.welcome'|trans({'%projectName%': projectName}) }}</div>
+        <div class="message assistant">{{ 'doc_chat.chat.welcome'|trans({'%projectName%': projectName}) }}</div>
     </div>
 
     <form class="chat-form" id="chat-form">
-        <input type="text" id="user-input" placeholder="{{ 'chat.input.placeholder'|trans }}" autocomplete="off" />
-        <button type="submit" id="send-btn">{{ 'chat.send'|trans }}</button>
+        <input type="text" id="user-input" placeholder="{{ 'doc_chat.chat.input.placeholder'|trans }}" autocomplete="off" />
+        <button type="submit" id="send-btn">{{ 'doc_chat.chat.send'|trans }}</button>
     </form>
 </div>
 
@@ -225,20 +225,20 @@ const btn = document.getElementById('send-btn');
 const messagesEl = document.getElementById('messages');
 
 const i18n = {
-    errorUnknown:       {{ 'chat.error.unknown'|trans|json_encode|raw }},
-    errorConnection:    {{ 'chat.error.connection'|trans|json_encode|raw }},
-    emailCardIntro:     {{ 'email_card.intro'|trans|json_encode|raw }},
-    emailNamePlaceholder: {{ 'email_card.name_placeholder'|trans|json_encode|raw }},
+    errorUnknown:          {{ 'doc_chat.chat.error.unknown'|trans|json_encode|raw }},
+    errorConnection:       {{ 'doc_chat.chat.error.connection'|trans|json_encode|raw }},
+    emailCardIntro:        {{ 'email_card.intro'|trans|json_encode|raw }},
+    emailNamePlaceholder:  {{ 'email_card.name_placeholder'|trans|json_encode|raw }},
     emailEmailPlaceholder: {{ 'email_card.email_placeholder'|trans|json_encode|raw }},
-    emailSubmit:        {{ 'email_card.submit'|trans|json_encode|raw }},
-    emailSubmitting:    {{ 'email_card.submitting'|trans|json_encode|raw }},
-    emailCancel:        {{ 'email_card.cancel'|trans|json_encode|raw }},
-    emailCancelMsg:     {{ 'email_card.cancel_message'|trans|json_encode|raw }},
-    emailSuccess:       {{ 'email_card.success'|trans|json_encode|raw }},
-    emailErrorSend:     {{ 'email_card.error.send'|trans|json_encode|raw }},
-    emailErrorConn:     {{ 'email_card.error.connection'|trans|json_encode|raw }},
-    emailErrorName:     {{ 'email_card.error.name'|trans|json_encode|raw }},
-    emailErrorEmail:    {{ 'email_card.error.email'|trans|json_encode|raw }},
+    emailSubmit:           {{ 'email_card.submit'|trans|json_encode|raw }},
+    emailSubmitting:       {{ 'email_card.submitting'|trans|json_encode|raw }},
+    emailCancel:           {{ 'email_card.cancel'|trans|json_encode|raw }},
+    emailCancelMsg:        {{ 'email_card.cancel_message'|trans|json_encode|raw }},
+    emailSuccess:          {{ 'email_card.success'|trans|json_encode|raw }},
+    emailErrorSend:        {{ 'email_card.error.send'|trans|json_encode|raw }},
+    emailErrorConn:        {{ 'email_card.error.connection'|trans|json_encode|raw }},
+    emailErrorName:        {{ 'email_card.error.name'|trans|json_encode|raw }},
+    emailErrorEmail:       {{ 'email_card.error.email'|trans|json_encode|raw }},
 };
 
 const history = [];
@@ -298,7 +298,7 @@ async function submitEmail() {
     sendBtn.textContent = i18n.emailSubmitting;
 
     try {
-        const res = await fetch('{{ path('chat_send_email') }}', {
+        const res = await fetch('{{ path('doc_chat_send_email') }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email, history }),
@@ -334,7 +334,7 @@ form.addEventListener('submit', async (e) => {
     const typing = appendMessage('...', 'typing');
 
     try {
-        const res = await fetch('{{ path('chat_message') }}', {
+        const res = await fetch('{{ path('doc_chat_message') }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text }),

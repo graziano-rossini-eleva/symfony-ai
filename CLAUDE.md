@@ -4,65 +4,70 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Context
 
-**SymfonyAI** is an AI-powered technical support chatbot. Users upload Markdown documentation files, ask questions about them, and can escalate to a human support team via email. The project is part of the Eleva Backoffice ecosystem at `/Users/grazianorossini/Documents/Eleva/Backoffice/`.
+**SymfonyAI** is a sandbox project for testing the [Symfony AI Bundle](https://symfony.com/doc/current/ai.html). Each feature exercises a different capability of the bundle through a concrete use case. Part of the Eleva Backoffice ecosystem at `/Users/grazianorossini/Documents/Eleva/Backoffice/`.
 
 ## Tech Stack
 
 - PHP 8.2+ / Symfony 7.4
-- Doctrine ORM (PostgreSQL) — no entities defined yet, session-based storage
-- Twig templates with Symfony UX Turbo (Hotwire)
 - Symfony AI Bundle (`symfony/ai-bundle`) with Anthropic platform bridge
 - Claude Sonnet 4 model (`Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4`)
+- Symfony UX Turbo (Hotwire) for reactive UI
+- Twig templates
 - Italian translations (`translations/messages.it.yaml`)
+- No database entities — session-based storage
 
 ## Common Commands
 
 ```bash
 composer install
 php bin/console cache:clear
-php bin/phpunit                        # run all tests
-php bin/phpunit tests/path/to/Test.php # run single test
-# No migrations yet — Entity/ and Repository/ are empty
+php bin/phpunit
+php bin/phpunit tests/path/to/Test.php
 ```
 
 ## Architecture
 
-This project does NOT use the Eleva Backoffice base classes. It is a standalone Symfony 7.4 app:
+Standalone Symfony 7.4 app — no Eleva base classes. Standard `AbstractController`.
 
-- **Controllers** use standard Symfony `AbstractController`
-- **Services** will live in `src/Service/` — register in `config/services.yaml`
-- **Entities** go in `src/Entity/` — none defined yet
-- **Repositories** go in `src/Repository/` — none defined yet
-- **Templates** use Twig in `templates/` (base.html.twig, chat/, email/, home/)
-- **Translations** are Italian: `translations/messages.it.yaml`
+Features are organized as independent vertical slices:
 
-## Existing Controllers
+```
+src/
+├── Controller/
+│   ├── HomeController.php          # Feature selection landing page (/)
+│   ├── DocChatController.php       # /doc-chat — upload + chat + email escalation
+│   ├── FileParserController.php    # /file-parser — placeholder
+│   └── DqlController.php           # /dql — placeholder
+├── Service/
+│   └── DocChat/
+│       ├── ChatService.php         # AI prompt, agent call, tag detection
+│       └── SupportEmailService.php # Email assembly, transcript, history sanitisation
+└── EventSubscriber/
+    └── SecurityHeadersSubscriber.php
+templates/
+├── home/index.html.twig
+├── doc_chat/upload.html.twig
+├── doc_chat/index.html.twig
+├── file_parser/index.html.twig
+├── dql/index.html.twig
+└── email/support_request.html.twig
+```
 
-### `ChatController` (`src/Controller/ChatController.php`)
+When adding a new feature, follow the same pattern: one controller, one `Service/<FeatureName>/` directory, one `templates/<feature_name>/` directory.
+
+## Routes (DocChat)
 
 | Route | Method | Name |
 |---|---|---|
-| `/chat` | GET | `chat_index` |
-| `/chat/message` | POST | `chat_message` |
-| `/chat/send-email` | POST | `chat_send_email` |
-
-- `message()` — processes user questions, calls the Symfony AI Agent
-- `sendEmail()` — sends support email with chat transcript
-- Injects: `AgentInterface`, `TranslatorInterface`, `MailerInterface`
-- Gets `$supportEmail` and `$fromEmail` from `services.yaml` via env vars
-
-### `HomeController` (`src/Controller/HomeController.php`)
-
-| Route | Method | Name |
-|---|---|---|
-| `/` | GET | `home` |
-| `/upload` | POST | `upload` |
-
-- `upload()` — validates and stores uploaded Markdown content in session
+| `/doc-chat` | GET | `doc_chat` |
+| `/doc-chat/upload` | POST | `doc_chat_upload` |
+| `/doc-chat/chat` | GET | `doc_chat_chat` |
+| `/doc-chat/message` | POST | `doc_chat_message` |
+| `/doc-chat/send-email` | POST | `doc_chat_send_email` |
 
 ## AI Integration
 
-Configured via Symfony AI Bundle — no custom SDK calls needed.
+Inject `Symfony\AI\Agent\AgentInterface` — autowiring handles it. Service classes in `src/Service/<Feature>/` own all AI logic (prompt, call, response parsing). Controllers only validate HTTP input and delegate.
 
 ```yaml
 # config/packages/ai.yaml
@@ -71,25 +76,15 @@ ai:
         default:
             platform: 'ai.platform.anthropic'
             model: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
-
-# config/packages/ai_anthropic_platform.yaml
-ai:
-    platform:
-        anthropic:
-            api_key: '%env(ANTHROPIC_API_KEY)%'
 ```
-
-Inject `Symfony\AI\Agent\AgentInterface` in controllers/services — autowiring handles it.
 
 ## Environment Variables
 
 | Variable | Purpose |
 |---|---|
-| `APP_ENV` | Application environment |
 | `APP_SECRET` | Symfony secret |
-| `DATABASE_URL` | PostgreSQL DSN |
-| `MESSENGER_TRANSPORT_DSN` | Messenger transport |
-| `MAILER_DSN` | Mailer transport |
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `SUPPORT_EMAIL` | Recipient for escalation emails |
 | `FROM_EMAIL` | Sender address for outgoing emails |
+| `MAILER_DSN` | Mailer transport (`null://null` in dev) |
+| `DATABASE_URL` | PostgreSQL DSN (not yet used) |

@@ -19,7 +19,7 @@ services:
     App\:
         resource: '../src/'
 
-    App\Service\Mail\SupportEmailService:
+    App\Service\DocChat\SupportEmailService:
         arguments:
             $supportEmail: '%env(SUPPORT_EMAIL)%'
             $fromEmail: '%env(FROM_EMAIL)%'

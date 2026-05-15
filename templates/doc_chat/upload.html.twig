@@ -1,0 +1,120 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'doc_chat.page_title'|trans }}{% endblock %}
+
+{% block stylesheets %}
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #f5f5f5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    .wrapper {
+        text-align: center;
+        padding: 40px 20px;
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .back-link {
+        display: block;
+        margin-bottom: 28px;
+        font-size: .85rem;
+        color: #888;
+        text-decoration: none;
+    }
+
+    .back-link:hover { color: #1a1a2e; }
+
+    h1 {
+        font-size: 1.6rem;
+        color: #1a1a2e;
+        margin-bottom: 8px;
+    }
+
+    p {
+        color: #666;
+        font-size: .95rem;
+        margin-bottom: 40px;
+    }
+
+    .upload-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 32px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .upload-label {
+        font-size: .9rem;
+        color: #444;
+        text-align: left;
+        font-weight: 500;
+    }
+
+    .upload-input {
+        padding: 10px 14px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: .9rem;
+        width: 100%;
+        cursor: pointer;
+        outline: none;
+        transition: border-color .2s;
+    }
+
+    .upload-input:focus { border-color: #1a1a2e; }
+
+    .btn-primary {
+        padding: 12px 24px;
+        background: #1a1a2e;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: .95rem;
+        cursor: pointer;
+        transition: opacity .2s;
+        width: 100%;
+    }
+
+    .btn-primary:hover { opacity: .85; }
+
+    .flash-error {
+        background: #fdecea;
+        color: #c0392b;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: .88rem;
+        text-align: left;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrapper">
+    <a class="back-link" href="{{ path('home') }}">← {{ 'doc_chat.back'|trans }}</a>
+    <h1>{{ 'doc_chat.upload.title'|trans }}</h1>
+    <p>{{ 'doc_chat.upload.subtitle'|trans }}</p>
+
+    {% for message in app.flashes('error') %}
+        <div class="flash-error">{{ message }}</div>
+    {% endfor %}
+
+    <form class="upload-card" action="{{ path('doc_chat_upload') }}" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('upload') }}" />
+        <label class="upload-label" for="doc_file">{{ 'doc_chat.upload.label'|trans }}</label>
+        <input class="upload-input" type="file" id="doc_file" name="doc_file" accept=".md" required />
+        <button class="btn-primary" type="submit">{{ 'doc_chat.upload.button'|trans }}</button>
+    </form>
+</div>
+{% endblock %}
