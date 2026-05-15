@@ -53,8 +53,10 @@ email_card.error.connection: 'Errore di connessione. Riprova.'
 error.rate_limit: 'Troppe richieste in poco tempo. Attendi qualche secondo e riprova.'
 error.session_expired: 'Sessione scaduta. Torna alla home e carica nuovamente il file.'
 error.empty_message: 'Messaggio vuoto.'
+error.message_too_long: 'Il messaggio supera la lunghezza massima consentita.'
 error.invalid_contact_data: 'Nome e indirizzo email validi sono obbligatori.'
 error.invalid_request: 'Corpo della richiesta non valido.'
+error.request_too_large: 'La richiesta supera la dimensione massima consentita.'
 
 # Email subject
 email.subject: 'Richiesta supporto: %projectName% — %name%'

@@ -14,6 +14,11 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class DqlController extends AbstractController
 {
+    /**
+     * Renders the natural language DQL assistant placeholder page.
+     *
+     * @return Response HTML response with the DQL assistant landing view
+     */
     #[Route('/dql', name: 'dql', methods: ['GET'])]
     public function index(): Response
     {

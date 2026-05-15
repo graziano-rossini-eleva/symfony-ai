@@ -26,22 +26,22 @@
 <div class="wrapper">
     <div class="header">
         <h1>{{ 'email.header.title'|trans }}</h1>
-        <p>{{ 'email.header.subtitle'|trans({'%projectName%': projectName}) }} — {{ date|date('d/m/Y H:i') }}</p>
+        <p>{{ 'email.header.subtitle'|trans({'%projectName%': projectName|e('html')}) }} — {{ date|date('d/m/Y H:i') }}</p>
     </div>
 
     <div class="body">
         <div class="meta">
-            <div><strong>{{ 'email.meta.name'|trans }}</strong> {{ name }}</div>
-            <div><strong>{{ 'email.meta.email'|trans }}</strong> <a href="mailto:{{ userEmail }}">{{ userEmail }}</a></div>
-            <div><strong>{{ 'email.meta.project'|trans }}</strong> {{ projectName }}</div>
+            <div><strong>{{ 'email.meta.name'|trans }}</strong> {{ name|e('html') }}</div>
+            <div><strong>{{ 'email.meta.email'|trans }}</strong> <a href="mailto:{{ userEmail|e('html_attr') }}">{{ userEmail|e('html') }}</a></div>
+            <div><strong>{{ 'email.meta.project'|trans }}</strong> {{ projectName|e('html') }}</div>
         </div>
 
         <div class="chat">
             <h2>{{ 'email.chat.title'|trans }}</h2>
             {% for msg in history %}
-            <div class="msg {{ msg.role }}">
-                <div class="role">{% if msg.role == 'user' %}{{ name }}{% else %}{{ 'email.role.assistant'|trans }}{% endif %}</div>
-                <div class="text">{{ msg.text }}</div>
+            <div class="msg {{ msg.role|e('html_attr') }}">
+                <div class="role">{% if msg.role == 'user' %}{{ name|e('html') }}{% else %}{{ 'email.role.assistant'|trans }}{% endif %}</div>
+                <div class="text">{{ msg.text|e('html') }}</div>
             </div>
             {% endfor %}
         </div>

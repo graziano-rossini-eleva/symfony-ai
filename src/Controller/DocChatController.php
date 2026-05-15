@@ -24,6 +24,12 @@ class DocChatController extends AbstractController
 {
     private const MAX_CONTENT_BYTES = 524288; // 512 KB
 
+    /** Maximum character length accepted for a single chat question. */
+    private const MAX_QUESTION_LENGTH = 2000;
+
+    /** Maximum raw request-body size accepted for the send-email endpoint (512 KB). */
+    private const MAX_EMAIL_BODY_BYTES = 524288;
+
     /**
      * @param ChatService         $chatService         AI service that processes user questions.
      * @param SupportEmailService $supportEmailService Mail service that dispatches support-request emails.
@@ -156,6 +162,13 @@ class DocChatController extends AbstractController
             );
         }
 
+        if (strlen($question) > self::MAX_QUESTION_LENGTH) {
+            return $this->json(
+                ['error' => $this->translator->trans('error.message_too_long')],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
         try {
             $result = $this->chatService->ask($docContext, $question);
         } catch (RateLimitExceededException) {
@@ -179,6 +192,15 @@ class DocChatController extends AbstractController
     #[Route('/send-email', name: 'doc_chat_send_email', methods: ['POST'])]
     public function sendEmail(Request $request): JsonResponse
     {
+        if ($request->headers->get('Content-Length') > self::MAX_EMAIL_BODY_BYTES
+            || strlen($request->getContent()) > self::MAX_EMAIL_BODY_BYTES
+        ) {
+            return $this->json(
+                ['error' => $this->translator->trans('error.request_too_large')],
+                Response::HTTP_REQUEST_ENTITY_TOO_LARGE
+            );
+        }
+
         $projectName = $request->getSession()->get('doc_name') ?? 'N/D';
 
         $data = json_decode($request->getContent(), true);

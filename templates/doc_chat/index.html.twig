@@ -218,145 +218,34 @@
     </form>
 </div>
 
+{#
+    Routes and i18n strings are passed through a configuration object so that
+    no inline event handlers or fetch URLs need to be embedded in the script
+    block — allowing 'unsafe-inline' to be removed from script-src in the CSP.
+#}
 <script>
-const form = document.getElementById('chat-form');
-const input = document.getElementById('user-input');
-const btn = document.getElementById('send-btn');
-const messagesEl = document.getElementById('messages');
-
-const i18n = {
-    errorUnknown:          {{ 'doc_chat.chat.error.unknown'|trans|json_encode|raw }},
-    errorConnection:       {{ 'doc_chat.chat.error.connection'|trans|json_encode|raw }},
-    emailCardIntro:        {{ 'email_card.intro'|trans|json_encode|raw }},
-    emailNamePlaceholder:  {{ 'email_card.name_placeholder'|trans|json_encode|raw }},
-    emailEmailPlaceholder: {{ 'email_card.email_placeholder'|trans|json_encode|raw }},
-    emailSubmit:           {{ 'email_card.submit'|trans|json_encode|raw }},
-    emailSubmitting:       {{ 'email_card.submitting'|trans|json_encode|raw }},
-    emailCancel:           {{ 'email_card.cancel'|trans|json_encode|raw }},
-    emailCancelMsg:        {{ 'email_card.cancel_message'|trans|json_encode|raw }},
-    emailSuccess:          {{ 'email_card.success'|trans|json_encode|raw }},
-    emailErrorSend:        {{ 'email_card.error.send'|trans|json_encode|raw }},
-    emailErrorConn:        {{ 'email_card.error.connection'|trans|json_encode|raw }},
-    emailErrorName:        {{ 'email_card.error.name'|trans|json_encode|raw }},
-    emailErrorEmail:       {{ 'email_card.error.email'|trans|json_encode|raw }},
+window.DocChat = {
+    routes: {
+        message:   {{ path('doc_chat_message')|json_encode|raw }},
+        sendEmail: {{ path('doc_chat_send_email')|json_encode|raw }},
+    },
+    i18n: {
+        errorUnknown:          {{ 'doc_chat.chat.error.unknown'|trans|json_encode|raw }},
+        errorConnection:       {{ 'doc_chat.chat.error.connection'|trans|json_encode|raw }},
+        emailCardIntro:        {{ 'email_card.intro'|trans|json_encode|raw }},
+        emailNamePlaceholder:  {{ 'email_card.name_placeholder'|trans|json_encode|raw }},
+        emailEmailPlaceholder: {{ 'email_card.email_placeholder'|trans|json_encode|raw }},
+        emailSubmit:           {{ 'email_card.submit'|trans|json_encode|raw }},
+        emailSubmitting:       {{ 'email_card.submitting'|trans|json_encode|raw }},
+        emailCancel:           {{ 'email_card.cancel'|trans|json_encode|raw }},
+        emailCancelMsg:        {{ 'email_card.cancel_message'|trans|json_encode|raw }},
+        emailSuccess:          {{ 'email_card.success'|trans|json_encode|raw }},
+        emailErrorSend:        {{ 'email_card.error.send'|trans|json_encode|raw }},
+        emailErrorConn:        {{ 'email_card.error.connection'|trans|json_encode|raw }},
+        emailErrorName:        {{ 'email_card.error.name'|trans|json_encode|raw }},
+        emailErrorEmail:       {{ 'email_card.error.email'|trans|json_encode|raw }},
+    },
 };
-
-const history = [];
-
-function scrollBottom() {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-function appendMessage(text, role) {
-    const div = document.createElement('div');
-    div.className = 'message ' + role;
-    div.textContent = text;
-    messagesEl.appendChild(div);
-    scrollBottom();
-    return div;
-}
-
-function showEmailCard() {
-    const card = document.createElement('div');
-    card.className = 'email-card';
-    card.id = 'email-card';
-    card.innerHTML = `
-        <p>${i18n.emailCardIntro}</p>
-        <input type="text" id="email-name" placeholder="${i18n.emailNamePlaceholder}" />
-        <input type="email" id="email-address" placeholder="${i18n.emailEmailPlaceholder}" />
-        <div class="field-error" id="email-error"></div>
-        <div class="email-card-actions">
-            <button class="btn-primary" id="email-send-btn">${i18n.emailSubmit}</button>
-            <button class="btn-secondary" id="email-cancel-btn">${i18n.emailCancel}</button>
-        </div>
-    `;
-    messagesEl.appendChild(card);
-    scrollBottom();
-
-    document.getElementById('email-send-btn').addEventListener('click', submitEmail);
-    document.getElementById('email-cancel-btn').addEventListener('click', () => {
-        card.remove();
-        appendMessage(i18n.emailCancelMsg, 'assistant');
-    });
-}
-
-async function submitEmail() {
-    const name = document.getElementById('email-name').value.trim();
-    const email = document.getElementById('email-address').value.trim();
-    const errorEl = document.getElementById('email-error');
-    const sendBtn = document.getElementById('email-send-btn');
-
-    errorEl.textContent = '';
-
-    if (!name) { errorEl.textContent = i18n.emailErrorName; return; }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        errorEl.textContent = i18n.emailErrorEmail;
-        return;
-    }
-
-    sendBtn.disabled = true;
-    sendBtn.textContent = i18n.emailSubmitting;
-
-    try {
-        const res = await fetch('{{ path('doc_chat_send_email') }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, history }),
-        });
-
-        const data = await res.json();
-        document.getElementById('email-card').remove();
-
-        if (data.success) {
-            appendMessage(i18n.emailSuccess.replace('%name%', name), 'assistant');
-        } else {
-            appendMessage(i18n.emailErrorSend, 'assistant');
-        }
-    } catch {
-        document.getElementById('email-send-btn').disabled = false;
-        document.getElementById('email-send-btn').textContent = i18n.emailSubmit;
-        document.getElementById('email-error').textContent = i18n.emailErrorConn;
-    }
-}
-
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const text = input.value.trim();
-    if (!text) return;
-
-    document.getElementById('email-card')?.remove();
-
-    appendMessage(text, 'user');
-    history.push({ role: 'user', text });
-    input.value = '';
-    btn.disabled = true;
-
-    const typing = appendMessage('...', 'typing');
-
-    try {
-        const res = await fetch('{{ path('doc_chat_message') }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text }),
-        });
-
-        const data = await res.json();
-        typing.remove();
-
-        const reply = data.reply ?? data.error ?? i18n.errorUnknown;
-        appendMessage(reply, 'assistant');
-        history.push({ role: 'assistant', text: reply });
-
-        if (data.offer_email) {
-            showEmailCard();
-        }
-    } catch {
-        typing.remove();
-        appendMessage(i18n.errorConnection, 'assistant');
-    } finally {
-        btn.disabled = false;
-        input.focus();
-    }
-});
 </script>
+<script src="{{ asset('js/doc-chat.js') }}"></script>
 {% endblock %}

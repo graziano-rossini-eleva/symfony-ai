@@ -14,6 +14,11 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class FileParserController extends AbstractController
 {
+    /**
+     * Renders the file parser feature placeholder page.
+     *
+     * @return Response HTML response with the file parser landing view
+     */
     #[Route('/file-parser', name: 'file_parser', methods: ['GET'])]
     public function index(): Response
     {

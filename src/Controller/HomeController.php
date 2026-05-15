@@ -11,6 +11,11 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class HomeController extends AbstractController
 {
+    /**
+     * Renders the landing page listing all available AI feature demos.
+     *
+     * @return Response HTML response with the home page
+     */
     #[Route('/', name: 'home', methods: ['GET'])]
     public function index(): Response
     {
