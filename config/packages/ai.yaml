@@ -6,3 +6,11 @@ ai:
                 name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
                 options:
                     max_tokens: 8096
+        advisor:
+            platform: 'ai.platform.anthropic'
+            model:
+                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+                options:
+                    max_tokens: 8096
+            tools:
+                - App\Tool\DatabaseQueryTool

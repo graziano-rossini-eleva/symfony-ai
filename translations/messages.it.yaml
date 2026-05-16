@@ -8,6 +8,8 @@ home.feature.file_parser.title: 'PDF Parser'
 home.feature.file_parser.description: "Carica un PDF e lascia che l'AI estragga i dati strutturati che ti servono."
 home.feature.sql.title: 'Assistente SQL'
 home.feature.sql.description: "Interroga il database in linguaggio naturale: l'AI genera la query in sola lettura."
+home.feature.advisor.title: 'Advisor AI'
+home.feature.advisor.description: "Fai domande complesse sui dati della piattaforma: l'AI interroga autonomamente il database più volte e sintetizza una risposta in linguaggio naturale."
 home.feature.coming_soon: 'In arrivo'
 doc_chat.page_title: 'Chat Documentazione — Carica file'
 doc_chat.back: 'Torna alla home'
@@ -103,3 +105,24 @@ sql.examples.5: 'Distribuzione dei corsi per livello (beginner / intermediate / 
 sql.examples.6: 'Le 20 recensioni più recenti con nome utente, titolo corso e voto'
 sql.examples.7: 'Corsi con progresso medio degli iscritti superiore al 50%'
 sql.examples.8: 'Categorie con più corsi pubblicati, ordinate per numero di corsi'
+
+# Advisor AI — multi-step tool calling
+advisor.page_title: 'Advisor AI'
+advisor.title: 'Advisor AI'
+advisor.subtitle: "Fai una domanda complessa sui dati della piattaforma. L'agente interrogherà autonomamente il database più volte e ti risponderà in linguaggio naturale."
+advisor.step.1: "Scrivi la tua domanda"
+advisor.step.2: "L'agente interroga il DB in autonomia"
+advisor.step.3: "Ricevi una risposta ragionata"
+advisor.question.label: 'La tua domanda'
+advisor.question.placeholder: "Es: Quali istruttori hanno i corsi meglio valutati e quanti studenti li seguono?"
+advisor.examples.label: 'Esempi'
+advisor.examples.1: "Quali sono i 5 corsi più popolari e come vengono valutati?"
+advisor.examples.2: "Confronta il numero di studenti per livello di corso (beginner / intermediate / advanced)"
+advisor.examples.3: "Quali istruttori hanno la media voto più alta sui loro corsi?"
+advisor.examples.4: "Quanti studenti hanno completato almeno un corso e qual è la loro percentuale?"
+advisor.examples.5: "Quali categorie hanno più corsi pubblicati e più iscrizioni in totale?"
+advisor.ask: 'Chiedi'
+advisor.thinking: "L'agente sta ragionando..."
+advisor.answer.title: 'Risposta'
+advisor.error.unknown: 'Errore sconosciuto. Riprova.'
+advisor.error.connection: 'Errore di connessione. Controlla la rete e riprova.'
