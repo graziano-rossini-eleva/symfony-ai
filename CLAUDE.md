@@ -138,6 +138,19 @@ Rules:
 - Write descriptions in **English**.
 - Never leave the default empty string returned by the parent.
 
+### Fixtures and Tests
+
+**IMPORTANT: Before running fixtures (`doctrine:fixtures:load`) or tests (`bin/phpunit`), always check that the target database schema does not contain `_staging` or `_prod` in its name.**
+
+Read the `DATABASE_URL` value from `.env` or `.env.local` and extract the database name. If the name contains `_staging` or `_prod`, stop and ask the user for explicit confirmation before proceeding.
+
+```bash
+# Example check
+grep DATABASE_URL .env .env.local 2>/dev/null
+```
+
+Never run destructive operations (fixtures purge the entire database) against staging or production schemas.
+
 ### Commits
 
 **IMPORTANT: Every commit must follow Conventional Commits standards and be kept small and focused.**
