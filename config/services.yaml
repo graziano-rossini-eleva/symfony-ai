@@ -23,3 +23,10 @@ services:
         arguments:
             $supportEmail: '%env(SUPPORT_EMAIL)%'
             $fromEmail: '%env(FROM_EMAIL)%'
+
+    # Disable autoconfigure so #[AsTool] does not tag this service with ai.tool
+    # globally. The advisor agent wires it explicitly via ai.yaml; without this,
+    # the default agent's toolbox would also receive the tool and send unnecessary
+    # API calls on every SQL-assistant query.
+    App\Tool\DatabaseQueryTool:
+        autoconfigure: false
