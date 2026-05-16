@@ -119,6 +119,21 @@ Rules:
 - When a new language file is added to `translations/`, back-fill all existing keys immediately.
 - PHP exceptions and log messages do not need translation. Only strings visible to end users do.
 
+### Commits
+
+**IMPORTANT: Every commit must follow Conventional Commits standards and be kept small and focused.**
+
+Format: `<type>(<scope>): <short description>`
+
+Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `style`
+
+Rules:
+- Each commit must touch only files that belong to a single logical unit of work (e.g. one feature, one bug fix, one refactor). Do not bundle unrelated changes.
+- If staged files span multiple unrelated concerns, split them into separate commits.
+- Never commit more files than can be described accurately in a single subject line.
+- The subject line must be concise (≤ 72 chars), imperative mood, no trailing period.
+- A body is optional but recommended when the "why" is not obvious from the subject.
+
 ## Environment Variables
 
 | Variable | Purpose |
