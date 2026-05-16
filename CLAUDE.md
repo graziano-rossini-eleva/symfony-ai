@@ -37,7 +37,7 @@ src/
 │   ├── HomeController.php          # Feature selection landing page (/)
 │   ├── DocChatController.php       # /doc-chat — upload + chat + email escalation
 │   ├── FileParserController.php    # /file-parser — placeholder
-│   └── DqlController.php           # /dql — placeholder
+│   └── SqlController.php           # /sql — placeholder
 ├── Service/
 │   └── DocChat/
 │       ├── ChatService.php         # AI prompt, agent call, tag detection
@@ -49,7 +49,7 @@ templates/
 ├── doc_chat/upload.html.twig
 ├── doc_chat/index.html.twig
 ├── file_parser/index.html.twig
-├── dql/index.html.twig
+├── sql/index.html.twig
 └── email/support_request.html.twig
 ```
 

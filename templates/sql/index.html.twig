@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'dql.page_title'|trans }}{% endblock %}
+{% block title %}{{ 'sql.page_title'|trans }}{% endblock %}
 
 {% block stylesheets %}
 <style>
@@ -438,13 +438,13 @@
     {# ── Header ─────────────────────────────────────────── #}
     <div class="page-header">
         <span style="font-size:1.8rem">🗄️</span>
-        <h1>{{ 'dql.title'|trans }}</h1>
+        <h1>{{ 'sql.title'|trans }}</h1>
         <a class="back-link" href="{{ path('home') }}">← {{ 'doc_chat.back'|trans }}</a>
     </div>
 
     {# ── Schema reference ────────────────────────────────── #}
     <details class="schema-card">
-        <summary>🗂 {{ 'dql.schema.title'|trans }}</summary>
+        <summary>🗂 {{ 'sql.schema.title'|trans }}</summary>
         <div class="schema-grid">
 
             <div class="schema-table">
@@ -540,32 +540,32 @@
 
     {# ── Prompt form ─────────────────────────────────────── #}
     <div class="prompt-card">
-        <label for="prompt">{{ 'dql.prompt.label'|trans }}</label>
+        <label for="prompt">{{ 'sql.prompt.label'|trans }}</label>
         <textarea
             id="prompt"
             name="prompt"
             maxlength="1000"
-            placeholder="{{ 'dql.prompt.placeholder'|trans }}"
+            placeholder="{{ 'sql.prompt.placeholder'|trans }}"
             autocomplete="off"
             spellcheck="false"
         ></textarea>
 
-        <div class="examples-label">{{ 'dql.examples.label'|trans }}</div>
+        <div class="examples-label">{{ 'sql.examples.label'|trans }}</div>
         <div class="chips">
-            <button class="chip" type="button" data-prompt="{{ 'dql.examples.1'|trans }}">{{ 'dql.examples.1'|trans }}</button>
-            <button class="chip" type="button" data-prompt="{{ 'dql.examples.2'|trans }}">{{ 'dql.examples.2'|trans }}</button>
-            <button class="chip" type="button" data-prompt="{{ 'dql.examples.3'|trans }}">{{ 'dql.examples.3'|trans }}</button>
-            <button class="chip" type="button" data-prompt="{{ 'dql.examples.4'|trans }}">{{ 'dql.examples.4'|trans }}</button>
-            <button class="chip" type="button" data-prompt="{{ 'dql.examples.5'|trans }}">{{ 'dql.examples.5'|trans }}</button>
-            <button class="chip" type="button" data-prompt="{{ 'dql.examples.6'|trans }}">{{ 'dql.examples.6'|trans }}</button>
-            <button class="chip" type="button" data-prompt="{{ 'dql.examples.7'|trans }}">{{ 'dql.examples.7'|trans }}</button>
-            <button class="chip" type="button" data-prompt="{{ 'dql.examples.8'|trans }}">{{ 'dql.examples.8'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'sql.examples.1'|trans }}">{{ 'sql.examples.1'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'sql.examples.2'|trans }}">{{ 'sql.examples.2'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'sql.examples.3'|trans }}">{{ 'sql.examples.3'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'sql.examples.4'|trans }}">{{ 'sql.examples.4'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'sql.examples.5'|trans }}">{{ 'sql.examples.5'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'sql.examples.6'|trans }}">{{ 'sql.examples.6'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'sql.examples.7'|trans }}">{{ 'sql.examples.7'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'sql.examples.8'|trans }}">{{ 'sql.examples.8'|trans }}</button>
         </div>
 
         <div class="prompt-actions">
             <button class="btn-run" id="run-btn" type="button">
                 <div class="spinner"></div>
-                <span class="btn-label">{{ 'dql.run'|trans }}</span>
+                <span class="btn-label">{{ 'sql.run'|trans }}</span>
             </button>
             <span class="char-count" id="char-count">0 / 1000</span>
         </div>
@@ -576,14 +576,14 @@
 
     {# ── SQL viewer ──────────────────────────────────────── #}
     <details class="sql-card" id="sql-card">
-        <summary>📋 {{ 'dql.sql.label'|trans }}</summary>
+        <summary>📋 {{ 'sql.sql.label'|trans }}</summary>
         <pre class="sql-code" id="sql-code"></pre>
     </details>
 
     {# ── Results table ───────────────────────────────────── #}
     <div class="results-card" id="results-card">
         <div class="results-header">
-            <span class="results-title">{{ 'dql.results.title'|trans }}</span>
+            <span class="results-title">{{ 'sql.results.title'|trans }}</span>
             <span class="total-badge" id="total-badge"></span>
         </div>
         <div class="table-wrap">
@@ -596,7 +596,7 @@
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <span class="pagination-info" id="pagination-info"></span>
                 <label style="font-size:.82rem;color:#666;display:flex;align-items:center;gap:6px;">
-                    {{ 'dql.pagination.per_page'|trans }}
+                    {{ 'sql.pagination.per_page'|trans }}
                     <select class="per-page-select" id="per-page">
                         <option value="10">10</option>
                         <option value="20" selected>20</option>
@@ -668,7 +668,7 @@
         hideError();
 
         try {
-            const res = await fetch('{{ path('dql_query') }}', {
+            const res = await fetch('{{ path('sql_query') }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt }),
@@ -677,14 +677,14 @@
             const data = await res.json();
 
             if (!res.ok) {
-                showError(data.error ?? '{{ 'dql.error.unknown'|trans }}');
+                showError(data.error ?? '{{ 'sql.error.unknown'|trans }}');
                 return;
             }
 
             renderSql(data.sql);
             renderTable(data.columns, data.rows);
         } catch (err) {
-            showError('{{ 'dql.error.connection'|trans }}');
+            showError('{{ 'sql.error.connection'|trans }}');
         } finally {
             setLoading(false);
         }
@@ -729,7 +729,7 @@
 
         // Total badge
         const total = rows.length;
-        totalBadge.textContent = total + ' {{ 'dql.results.rows'|trans }}';
+        totalBadge.textContent = total + ' {{ 'sql.results.rows'|trans }}';
 
         // Header
         thead.innerHTML = '<tr>' + columns.map(c =>
@@ -764,7 +764,7 @@
         // Pagination info
         const from = total === 0 ? 0 : start + 1;
         const to   = Math.min(start + perPage, total);
-        paginationInfo.textContent = from + '–' + to + ' {{ 'dql.pagination.of'|trans }} ' + total;
+        paginationInfo.textContent = from + '–' + to + ' {{ 'sql.pagination.of'|trans }} ' + total;
 
         // Page buttons (show at most 7 around current page)
         buildPageButtons(pages, perPage);

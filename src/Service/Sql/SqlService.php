@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service\Dql;
+namespace App\Service\Sql;
 
 use Doctrine\DBAL\Connection;
 use Symfony\AI\Agent\AgentInterface;
@@ -20,7 +20,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *  - Safety check    : rejects any non-SELECT statement before execution
  *  - Execution       : uses DBAL Connection (read-only SELECT, no ORM overhead)
  */
-class DqlService
+class SqlService
 {
     /**
      * @param AgentInterface $default    Symfony AI agent wired to the Anthropic Claude model.

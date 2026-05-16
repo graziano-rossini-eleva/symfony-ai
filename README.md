@@ -10,7 +10,7 @@ Each feature exercises a different capability of the bundle through a concrete u
 |---|---|---|
 | **Doc Chat** | Available | Upload a Markdown file and chat with an AI assistant about its content. Supports email escalation to a human support team. |
 | **File Parser** | Available | Upload a PDF and describe what to extract in plain language. The AI returns a structured JSON object. |
-| **DQL Assistant** | Available | Describe in plain language what data you want; the AI generates a safe read-only SQL SELECT and runs it against the database, showing paginated results. |
+| **SQL Assistant** | Available | Describe in plain language what data you want; the AI generates a safe read-only SQL SELECT and runs it against the database, showing paginated results. |
 
 ## Tech Stack
 
@@ -30,15 +30,15 @@ src/
 │   ├── HomeController.php          # Feature selection landing page
 │   ├── DocChatController.php       # Doc Chat: upload + chat + email escalation
 │   ├── FileParserController.php    # File Parser: upload + extract
-│   └── DqlController.php           # DQL Assistant: prompt → SQL → paginated table
+│   └── SqlController.php           # SQL Assistant: prompt → SQL → paginated table
 ├── Service/
 │   ├── DocChat/
 │   │   ├── ChatService.php         # AI prompt, agent call, tag detection
 │   │   └── SupportEmailService.php # Email assembly, transcript, history sanitisation
 │   ├── FileParser/
 │   │   └── FileParserService.php   # PDF read, prompt injection mitigation, JSON normalisation
-│   └── Dql/
-│       └── DqlService.php          # Schema loading, SQL generation via AI, safe DBAL execution
+│   └── Sql/
+│       └── SqlService.php          # Schema loading, SQL generation via AI, safe DBAL execution
 ├── DataFixtures/
 │   └── AppFixtures.php             # Seed data: 100+ records per table via FakerPHP
 └── EventSubscriber/
@@ -54,7 +54,7 @@ templates/
 │   ├── upload.html.twig
 │   └── index.html.twig
 ├── file_parser/index.html.twig
-├── dql/index.html.twig
+├── sql/index.html.twig
 └── email/support_request.html.twig
 translations/
 └── messages.it.yaml

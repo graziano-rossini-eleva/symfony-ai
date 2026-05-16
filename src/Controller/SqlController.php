@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use App\Service\Dql\DqlService;
+use App\Service\Sql\SqlService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -12,31 +12,31 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Provides a natural-language SQL assistant backed by the Claude AI agent.
  *
- * The user submits a plain-text question; the DqlService translates it into a
+ * The user submits a plain-text question; the SqlService translates it into a
  * safe SQL SELECT, executes it, and returns the result set as JSON.
  * The template handles rendering and client-side pagination entirely in JavaScript.
  */
-class DqlController extends AbstractController
+class SqlController extends AbstractController
 {
     private const MAX_PROMPT_LENGTH = 1000;
 
     /**
-     * @param DqlService $dqlService Handles AI query generation and safe SQL execution.
+     * @param SqlService $sqlService Handles AI query generation and safe SQL execution.
      */
     public function __construct(
-        private readonly DqlService $dqlService,
+        private readonly SqlService $sqlService,
     ) {
     }
 
     /**
-     * Renders the DQL assistant interface.
+     * Renders the SQL assistant interface.
      *
      * @return Response HTML page with prompt form and results area.
      */
-    #[Route('/dql', name: 'dql', methods: ['GET'])]
+    #[Route('/sql', name: 'sql', methods: ['GET'])]
     public function index(): Response
     {
-        return $this->render('dql/index.html.twig');
+        return $this->render('sql/index.html.twig');
     }
 
     /**
@@ -50,10 +50,9 @@ class DqlController extends AbstractController
      *   Success: `{ sql, columns, rows, total }`
      *   Error  : `{ error: "..." }` with an appropriate HTTP status code.
      */
-    #[Route('/dql/query', name: 'dql_query', methods: ['POST'])]
+    #[Route('/sql/query', name: 'sql_query', methods: ['POST'])]
     public function query(Request $request): JsonResponse
     {
-        // Validate Content-Type and body size.
         $body = json_decode((string) $request->getContent(), true);
 
         if (!is_array($body)) {
@@ -77,7 +76,7 @@ class DqlController extends AbstractController
         }
 
         try {
-            $result = $this->dqlService->query($prompt);
+            $result = $this->sqlService->query($prompt);
 
             return $this->json($result);
         } catch (\RuntimeException $e) {
