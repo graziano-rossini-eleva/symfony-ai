@@ -132,6 +132,7 @@ Rules:
 - Each commit must touch only files that belong to a single logical unit of work (e.g. one feature, one bug fix, one refactor). Do not bundle unrelated changes.
 - If staged files span multiple unrelated concerns, split them into separate commits.
 - Never commit more files than can be described accurately in a single subject line.
+- **Always show the proposed commit message to the user and wait for explicit confirmation before running `git commit`.**
 - The subject line must be concise (≤ 72 chars), imperative mood, no trailing period.
 - A body is optional but recommended when the "why" is not obvious from the subject.
 
