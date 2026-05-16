@@ -78,6 +78,24 @@ ai:
             model: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
 ```
 
+## Mandatory Workflows
+
+### Doctrine Entities — PHPDoc
+
+**IMPORTANT: After creating or modifying any file in `src/Entity/`, you MUST immediately invoke the `symfony-phpdoc` agent on the changed files before committing.**
+
+This applies to:
+- New entity classes
+- Added or changed properties
+- Added or changed methods (getters, setters, lifecycle callbacks, domain methods)
+
+The agent must document:
+- Class level: domain description, table name, constraints, business rules
+- Every property: `@var` with type and short description
+- Every method: `@param`, `@return`, `@throws` where applicable, with description of non-obvious behaviour
+
+Do not skip this step even for trivial changes.
+
 ## Environment Variables
 
 | Variable | Purpose |
