@@ -4,8 +4,8 @@ home.subtitle: 'Seleziona una funzione da testare'
 home.feature.doc_chat.title: 'Chat Documentazione'
 home.feature.doc_chat.description: "Carica un file Markdown e interroga l'AI sulla documentazione del tuo progetto."
 home.feature.doc_chat.button: 'Avvia →'
-home.feature.file_parser.title: 'Parser di File'
-home.feature.file_parser.description: "Carica PDF, CSV o DOCX e lascia che l'AI estragga dati strutturati."
+home.feature.file_parser.title: 'PDF Parser'
+home.feature.file_parser.description: "Carica un PDF e lascia che l'AI estragga i dati strutturati che ti servono."
 home.feature.sql.title: 'Assistente SQL'
 home.feature.sql.description: "Interroga il database in linguaggio naturale: l'AI genera la query in sola lettura."
 home.feature.coming_soon: 'In arrivo'
@@ -61,8 +61,8 @@ transcript.project: 'Progetto: %project%'
 transcript.user_info: 'Utente: %name% <%email%>'
 transcript.role.user: 'Utente (%name%)'
 transcript.role.assistant: Assistente
-file_parser.page_title: 'Parser di File'
-file_parser.title: 'Parser di File'
+file_parser.page_title: 'PDF Parser'
+file_parser.title: 'PDF Parser'
 file_parser.subtitle: "Carica un PDF e descrivi quali dati estrarre. L'AI restituirà i dati strutturati in formato JSON."
 file_parser.description: "Carica documenti PDF e lascia che l'AI estragga i dati strutturati che ti servono."
 file_parser.upload.label: 'File PDF da analizzare'
