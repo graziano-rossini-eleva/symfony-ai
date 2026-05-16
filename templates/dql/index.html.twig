@@ -313,6 +313,122 @@
         background: #fff;
         cursor: pointer;
     }
+
+    /* ── Schema reference ────────────────────────────────── */
+    .schema-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 14px;
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+
+    .schema-card summary {
+        padding: 14px 20px;
+        font-size: .85rem;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+        color: #555;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        list-style: none;
+    }
+
+    .schema-card summary::-webkit-details-marker { display: none; }
+    .schema-card summary:hover { background: #fafafa; }
+
+    .schema-card[open] summary { border-bottom: 1px solid #e8e8e8; }
+
+    .schema-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 12px;
+        padding: 16px 20px;
+    }
+
+    .schema-table {
+        border: 1.5px solid #e8e8e8;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .schema-table-header {
+        background: #f4f4f8;
+        padding: 8px 12px;
+        font-size: .78rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .schema-table-body {
+        padding: 8px 12px;
+    }
+
+    .schema-col {
+        font-size: .75rem;
+        color: #555;
+        line-height: 1.8;
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+    }
+
+    .schema-col-name {
+        font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+        color: #1a1a2e;
+        font-weight: 600;
+    }
+
+    .schema-col-type {
+        color: #888;
+        font-size: .7rem;
+    }
+
+    .schema-col-fk {
+        color: #6c5ce7;
+        font-size: .7rem;
+        font-style: italic;
+    }
+
+    /* ── Example chips ───────────────────────────────────── */
+    .examples-label {
+        font-size: .78rem;
+        font-weight: 600;
+        color: #888;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .chip {
+        font-size: .78rem;
+        padding: 5px 12px;
+        border: 1.5px solid #d0d0d0;
+        border-radius: 20px;
+        background: #fafafa;
+        color: #444;
+        cursor: pointer;
+        transition: background .15s, border-color .15s, color .15s;
+        line-height: 1.4;
+    }
+
+    .chip:hover {
+        background: #1a1a2e;
+        border-color: #1a1a2e;
+        color: #fff;
+    }
 </style>
 {% endblock %}
 
@@ -326,6 +442,102 @@
         <a class="back-link" href="{{ path('home') }}">← {{ 'doc_chat.back'|trans }}</a>
     </div>
 
+    {# ── Schema reference ────────────────────────────────── #}
+    <details class="schema-card">
+        <summary>🗂 {{ 'dql.schema.title'|trans }}</summary>
+        <div class="schema-grid">
+
+            <div class="schema-table">
+                <div class="schema-table-header">👤 users</div>
+                <div class="schema-table-body">
+                    <div class="schema-col"><span class="schema-col-name">id</span><span class="schema-col-type">bigint PK</span></div>
+                    <div class="schema-col"><span class="schema-col-name">first_name</span><span class="schema-col-type">varchar</span></div>
+                    <div class="schema-col"><span class="schema-col-name">last_name</span><span class="schema-col-type">varchar</span></div>
+                    <div class="schema-col"><span class="schema-col-name">email</span><span class="schema-col-type">varchar unique</span></div>
+                    <div class="schema-col"><span class="schema-col-name">role</span><span class="schema-col-type">student | instructor</span></div>
+                    <div class="schema-col"><span class="schema-col-name">created_at</span><span class="schema-col-type">datetime</span></div>
+                    <div class="schema-col"><span class="schema-col-name">deleted</span><span class="schema-col-type">tinyint</span></div>
+                </div>
+            </div>
+
+            <div class="schema-table">
+                <div class="schema-table-header">🏷 categories</div>
+                <div class="schema-table-body">
+                    <div class="schema-col"><span class="schema-col-name">id</span><span class="schema-col-type">bigint PK</span></div>
+                    <div class="schema-col"><span class="schema-col-name">name</span><span class="schema-col-type">varchar unique</span></div>
+                    <div class="schema-col"><span class="schema-col-name">description</span><span class="schema-col-type">text nullable</span></div>
+                    <div class="schema-col"><span class="schema-col-name">created_at</span><span class="schema-col-type">datetime</span></div>
+                    <div class="schema-col"><span class="schema-col-name">deleted</span><span class="schema-col-type">tinyint</span></div>
+                </div>
+            </div>
+
+            <div class="schema-table">
+                <div class="schema-table-header">📚 courses</div>
+                <div class="schema-table-body">
+                    <div class="schema-col"><span class="schema-col-name">id</span><span class="schema-col-type">bigint PK</span></div>
+                    <div class="schema-col"><span class="schema-col-name">category_id</span><span class="schema-col-fk">→ categories</span></div>
+                    <div class="schema-col"><span class="schema-col-name">instructor_id</span><span class="schema-col-fk">→ users</span></div>
+                    <div class="schema-col"><span class="schema-col-name">title</span><span class="schema-col-type">varchar</span></div>
+                    <div class="schema-col"><span class="schema-col-name">price</span><span class="schema-col-type">decimal(10,2)</span></div>
+                    <div class="schema-col"><span class="schema-col-name">level</span><span class="schema-col-type">beginner | intermediate | advanced</span></div>
+                    <div class="schema-col"><span class="schema-col-name">published</span><span class="schema-col-type">tinyint</span></div>
+                    <div class="schema-col"><span class="schema-col-name">deleted</span><span class="schema-col-type">tinyint</span></div>
+                </div>
+            </div>
+
+            <div class="schema-table">
+                <div class="schema-table-header">📖 lessons</div>
+                <div class="schema-table-body">
+                    <div class="schema-col"><span class="schema-col-name">id</span><span class="schema-col-type">bigint PK</span></div>
+                    <div class="schema-col"><span class="schema-col-name">course_id</span><span class="schema-col-fk">→ courses</span></div>
+                    <div class="schema-col"><span class="schema-col-name">title</span><span class="schema-col-type">varchar</span></div>
+                    <div class="schema-col"><span class="schema-col-name">duration_minutes</span><span class="schema-col-type">int</span></div>
+                    <div class="schema-col"><span class="schema-col-name">position_order</span><span class="schema-col-type">int</span></div>
+                    <div class="schema-col"><span class="schema-col-name">deleted</span><span class="schema-col-type">tinyint</span></div>
+                </div>
+            </div>
+
+            <div class="schema-table">
+                <div class="schema-table-header">🎓 enrollments</div>
+                <div class="schema-table-body">
+                    <div class="schema-col"><span class="schema-col-name">id</span><span class="schema-col-type">bigint PK</span></div>
+                    <div class="schema-col"><span class="schema-col-name">user_id</span><span class="schema-col-fk">→ users</span></div>
+                    <div class="schema-col"><span class="schema-col-name">course_id</span><span class="schema-col-fk">→ courses</span></div>
+                    <div class="schema-col"><span class="schema-col-name">enrolled_at</span><span class="schema-col-type">datetime</span></div>
+                    <div class="schema-col"><span class="schema-col-name">progress_percent</span><span class="schema-col-type">int 0–100</span></div>
+                    <div class="schema-col"><span class="schema-col-name">completed</span><span class="schema-col-type">tinyint</span></div>
+                    <div class="schema-col"><span class="schema-col-name">deleted</span><span class="schema-col-type">tinyint</span></div>
+                </div>
+            </div>
+
+            <div class="schema-table">
+                <div class="schema-table-header">✅ lesson_progress</div>
+                <div class="schema-table-body">
+                    <div class="schema-col"><span class="schema-col-name">id</span><span class="schema-col-type">bigint PK</span></div>
+                    <div class="schema-col"><span class="schema-col-name">enrollment_id</span><span class="schema-col-fk">→ enrollments</span></div>
+                    <div class="schema-col"><span class="schema-col-name">lesson_id</span><span class="schema-col-fk">→ lessons</span></div>
+                    <div class="schema-col"><span class="schema-col-name">completed_at</span><span class="schema-col-type">datetime</span></div>
+                    <div class="schema-col"><span class="schema-col-name">deleted</span><span class="schema-col-type">tinyint</span></div>
+                </div>
+            </div>
+
+            <div class="schema-table">
+                <div class="schema-table-header">⭐ reviews</div>
+                <div class="schema-table-body">
+                    <div class="schema-col"><span class="schema-col-name">id</span><span class="schema-col-type">bigint PK</span></div>
+                    <div class="schema-col"><span class="schema-col-name">enrollment_id</span><span class="schema-col-fk">→ enrollments</span></div>
+                    <div class="schema-col"><span class="schema-col-name">course_id</span><span class="schema-col-fk">→ courses</span></div>
+                    <div class="schema-col"><span class="schema-col-name">user_id</span><span class="schema-col-fk">→ users</span></div>
+                    <div class="schema-col"><span class="schema-col-name">rating</span><span class="schema-col-type">tinyint 1–5</span></div>
+                    <div class="schema-col"><span class="schema-col-name">comment</span><span class="schema-col-type">text nullable</span></div>
+                    <div class="schema-col"><span class="schema-col-name">created_at</span><span class="schema-col-type">datetime</span></div>
+                    <div class="schema-col"><span class="schema-col-name">deleted</span><span class="schema-col-type">tinyint</span></div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
     {# ── Prompt form ─────────────────────────────────────── #}
     <div class="prompt-card">
         <label for="prompt">{{ 'dql.prompt.label'|trans }}</label>
@@ -337,6 +549,19 @@
             autocomplete="off"
             spellcheck="false"
         ></textarea>
+
+        <div class="examples-label">{{ 'dql.examples.label'|trans }}</div>
+        <div class="chips">
+            <button class="chip" type="button" data-prompt="{{ 'dql.examples.1'|trans }}">{{ 'dql.examples.1'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'dql.examples.2'|trans }}">{{ 'dql.examples.2'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'dql.examples.3'|trans }}">{{ 'dql.examples.3'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'dql.examples.4'|trans }}">{{ 'dql.examples.4'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'dql.examples.5'|trans }}">{{ 'dql.examples.5'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'dql.examples.6'|trans }}">{{ 'dql.examples.6'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'dql.examples.7'|trans }}">{{ 'dql.examples.7'|trans }}</button>
+            <button class="chip" type="button" data-prompt="{{ 'dql.examples.8'|trans }}">{{ 'dql.examples.8'|trans }}</button>
+        </div>
+
         <div class="prompt-actions">
             <button class="btn-run" id="run-btn" type="button">
                 <div class="spinner"></div>
@@ -408,6 +633,15 @@
     let allRows     = [];
     let allColumns  = [];
     let currentPage = 1;
+
+    // ── Example chips ────────────────────────────────────
+    document.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            promptEl.value = chip.dataset.prompt;
+            promptEl.dispatchEvent(new Event('input'));
+            promptEl.focus();
+        });
+    });
 
     // ── Character counter ────────────────────────────────
     promptEl.addEventListener('input', () => {
