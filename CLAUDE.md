@@ -120,6 +120,24 @@ Rules:
 - When a new language file is added to `translations/`, back-fill all existing keys immediately.
 - PHP exceptions and log messages do not need translation. Only strings visible to end users do.
 
+### Doctrine Migrations
+
+**IMPORTANT: Every migration file must have a human-readable description.**
+
+Override the `getDescription()` method in every generated migration class:
+
+```php
+public function getDescription(): string
+{
+    return 'Short description of what this migration does';
+}
+```
+
+Rules:
+- The description must explain *what* changes (e.g. `"Create user and role tables"`, `"Add status column to orders"`).
+- Write descriptions in **English**.
+- Never leave the default empty string returned by the parent.
+
 ### Commits
 
 **IMPORTANT: Every commit must follow Conventional Commits standards and be kept small and focused.**
