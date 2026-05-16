@@ -11,6 +11,7 @@ Each feature exercises a different capability of the bundle through a concrete u
 | **Doc Chat** | Available | Upload a Markdown file and chat with an AI assistant about its content. Supports email escalation to a human support team. |
 | **File Parser** | Available | Upload a PDF and describe what to extract in plain language. The AI returns a structured JSON object. |
 | **SQL Assistant** | Available | Describe in plain language what data you want; the AI generates a safe read-only SQL SELECT and runs it against the database, showing paginated results. |
+| **Advisor AI** | Available | Ask complex questions about the platform data in natural language. A dedicated agent with multi-step tool calling autonomously runs as many SQL queries as needed and synthesises a single natural-language answer in Italian. |
 
 ## Tech Stack
 
@@ -30,19 +31,25 @@ src/
 │   ├── HomeController.php          # Feature selection landing page
 │   ├── DocChatController.php       # Doc Chat: upload + chat + email escalation
 │   ├── FileParserController.php    # File Parser: upload + extract
-│   └── SqlController.php           # SQL Assistant: prompt → SQL → paginated table
+│   ├── SqlController.php           # SQL Assistant: prompt → SQL → paginated table
+│   └── AdvisorController.php       # Advisor AI: question → multi-step agent → answer
 ├── Service/
 │   ├── DocChat/
 │   │   ├── ChatService.php         # AI prompt, agent call, tag detection
 │   │   └── SupportEmailService.php # Email assembly, transcript, history sanitisation
 │   ├── FileParser/
 │   │   └── FileParserService.php   # PDF read, prompt injection mitigation, JSON normalisation
-│   └── Sql/
-│       └── SqlService.php          # Schema loading, SQL generation via AI, safe DBAL execution
+│   ├── Sql/
+│   │   └── SqlService.php          # Schema loading, SQL generation via AI, safe DBAL execution
+│   └── Advisor/
+│       └── AdvisorService.php      # Builds MessageBag, calls advisor agent, returns answer
+├── Tool/
+│   └── DatabaseQueryTool.php       # #[AsTool] wrapping SqlService for the advisor agent
 ├── DataFixtures/
 │   └── AppFixtures.php             # Seed data: 100+ records per table via FakerPHP
 └── EventSubscriber/
-    └── SecurityHeadersSubscriber.php
+    ├── SecurityHeadersSubscriber.php
+    └── AiExceptionSubscriber.php   # Converts RateLimitExceededException to JSON 429
 doc/
 └── db.md                           # Database schema reference (used as AI context)
 docker/
@@ -55,6 +62,7 @@ templates/
 │   └── index.html.twig
 ├── file_parser/index.html.twig
 ├── sql/index.html.twig
+├── advisor/index.html.twig
 └── email/support_request.html.twig
 translations/
 └── messages.it.yaml
@@ -177,20 +185,30 @@ Open [https://localhost:8000](https://localhost:8000).
 
 ## AI Configuration
 
-Model and options are configured in `config/packages/ai.yaml`:
+Model and agents are configured in `config/packages/ai.yaml`:
 
 ```yaml
 ai:
     agent:
-        default:
+        default:                          # used by Doc Chat, File Parser, SQL Assistant
             platform: 'ai.platform.anthropic'
             model:
                 name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
                 options:
                     max_tokens: 8096
+        advisor:                          # used by Advisor AI only
+            platform: 'ai.platform.anthropic'
+            model:
+                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+                options:
+                    max_tokens: 8096
+            tools:
+                - App\Tool\DatabaseQueryTool
 ```
 
 `max_tokens` is set to **8096** explicitly because the bundle default (1000) is too low for structured JSON responses over multi-page PDFs — the model output gets truncated mid-JSON. 8096 matches Claude Sonnet's output token ceiling.
+
+The `advisor` agent has a dedicated tool (`query_database`) that it can call autonomously, multiple times, before composing its final answer. The `default` agent has no tools so that the SQL assistant and other single-call features are not affected.
 
 To switch model, replace the constant with any value from `Symfony\AI\Platform\Bridge\Anthropic\Claude`.
 
