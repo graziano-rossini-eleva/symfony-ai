@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# pre-commit: limits the number of staged files per commit
+#
+# Override the limit locally (without editing this file):
+#   git config hooks.maxfiles 20
+
+MAX_FILES=$(git config --get hooks.maxfiles 2>/dev/null || echo 10)
+STAGED=$(git diff --cached --name-only | wc -l | tr -d ' ')
+
+if [ "$STAGED" -gt "$MAX_FILES" ]; then
+  echo ""
+  echo "  COMMIT RIFIUTATO: troppi file in staging ($STAGED file, limite: $MAX_FILES)."
+  echo ""
+  echo "  File in staging:"
+  git diff --cached --name-only | sed 's/^/    /'
+  echo ""
+  echo "  Suddividi le modifiche in commit più piccoli e mirati."
+  echo "  Per cambiare il limite: git config hooks.maxfiles <numero>"
+  echo ""
+  exit 1
+fi
+
+exit 0

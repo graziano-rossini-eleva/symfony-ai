@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# commit-msg: validates Conventional Commits format
+# https://www.conventionalcommits.org
+#
+# Format: type(scope): description
+# Types:  feat fix docs style refactor test chore perf ci build revert
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(head -1 "$COMMIT_MSG_FILE")
+
+# Skip merge commits and fixup commits
+case "$COMMIT_MSG" in
+  Merge*|Revert*|fixup!*|squash!*) exit 0 ;;
+esac
+
+PATTERN='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))!?: .{1,72}$'
+
+if ! echo "$COMMIT_MSG" | grep -qE "$PATTERN"; then
+  echo ""
+  echo "  COMMIT RIFIUTATO: messaggio non segue il formato Conventional Commits."
+  echo ""
+  echo "  Formato atteso:  type(scope): descrizione"
+  echo "  Esempio:         feat(file-parser): add CSV support"
+  echo ""
+  echo "  Tipi validi: feat | fix | docs | style | refactor | test | chore | perf | ci | build | revert"
+  echo "  - La descrizione deve essere tra 1 e 72 caratteri"
+  echo "  - Usa ! dopo il tipo per breaking changes: feat!: drop PHP 7 support"
+  echo ""
+  echo "  Messaggio ricevuto: $COMMIT_MSG"
+  echo ""
+  exit 1
+fi
+
+exit 0
