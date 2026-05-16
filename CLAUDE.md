@@ -100,6 +100,7 @@ Every element **must** have a PHPDoc block — no exceptions:
 | Lifecycle callback | Description of when it runs and what it sets |
 
 Rules:
+- All PHPDoc blocks and inline code comments must be written in **English**.
 - A description is required even when the method name seems self-explanatory — document *behaviour*, not just the name.
 - `@param` and `@return` must always include a short inline description, not just the type.
 - `@throws` is mandatory whenever an exception can be raised inside the method.
