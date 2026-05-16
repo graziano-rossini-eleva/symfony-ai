@@ -4,40 +4,604 @@
 
 {% block stylesheets %}
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         background: #f5f5f5;
-        display: flex;
-        justify-content: center;
-        align-items: center;
         min-height: 100vh;
+        color: #1a1a2e;
     }
-    .wrapper { text-align: center; padding: 48px 20px; max-width: 480px; }
-    .icon { font-size: 3rem; margin-bottom: 20px; }
-    h1 { font-size: 1.5rem; color: #1a1a2e; margin-bottom: 12px; }
-    p { color: #888; font-size: .95rem; margin-bottom: 28px; line-height: 1.6; }
-    .badge {
-        display: inline-block;
-        font-size: .8rem;
-        font-weight: 600;
-        padding: 5px 14px;
-        border-radius: 20px;
-        background: #f0f0f0;
-        color: #888;
+
+    /* ── Layout ─────────────────────────────────────────── */
+    .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .page-header h1 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        flex: 1;
+    }
+
+    .back-link {
+        font-size: .85rem;
+        color: #666;
+        text-decoration: none;
+    }
+
+    .back-link:hover { color: #1a1a2e; }
+
+    /* ── Prompt form ─────────────────────────────────────── */
+    .prompt-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 14px;
+        padding: 24px;
         margin-bottom: 28px;
     }
-    a { color: #1a1a2e; font-size: .88rem; }
+
+    .prompt-card label {
+        display: block;
+        font-weight: 600;
+        font-size: .9rem;
+        margin-bottom: 10px;
+    }
+
+    .prompt-card textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 12px 14px;
+        border: 1.5px solid #d0d0d0;
+        border-radius: 8px;
+        font-size: .95rem;
+        font-family: inherit;
+        resize: vertical;
+        line-height: 1.5;
+        transition: border-color .2s;
+        outline: none;
+    }
+
+    .prompt-card textarea:focus { border-color: #1a1a2e; }
+
+    .prompt-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .char-count {
+        font-size: .78rem;
+        color: #aaa;
+        margin-left: auto;
+    }
+
+    .char-count.over { color: #c0392b; }
+
+    .btn-run {
+        padding: 10px 24px;
+        background: #1a1a2e;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: .9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity .2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-run:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-run:not(:disabled):hover { opacity: .85; }
+
+    /* ── Spinner ─────────────────────────────────────────── */
+    .spinner {
+        width: 16px; height: 16px;
+        border: 2px solid rgba(255,255,255,.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin .65s linear infinite;
+        display: none;
+    }
+
+    .btn-run.loading .spinner { display: block; }
+    .btn-run.loading .btn-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error banner ────────────────────────────────────── */
+    .error-box {
+        background: #fff5f5;
+        border: 1.5px solid #f5c6c6;
+        border-radius: 10px;
+        padding: 14px 18px;
+        color: #c0392b;
+        font-size: .9rem;
+        margin-bottom: 24px;
+        display: none;
+    }
+
+    /* ── SQL viewer ──────────────────────────────────────── */
+    .sql-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 14px;
+        margin-bottom: 24px;
+        overflow: hidden;
+        display: none;
+    }
+
+    .sql-card summary {
+        padding: 14px 20px;
+        font-size: .85rem;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #555;
+    }
+
+    .sql-card summary:hover { background: #fafafa; }
+
+    .sql-code {
+        margin: 0;
+        padding: 16px 20px;
+        background: #1e1e2e;
+        color: #cdd6f4;
+        font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+        font-size: .82rem;
+        line-height: 1.6;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    /* ── Results table ───────────────────────────────────── */
+    .results-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 14px;
+        overflow: hidden;
+        display: none;
+    }
+
+    .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e8e8e8;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .results-title {
+        font-weight: 700;
+        font-size: .95rem;
+    }
+
+    .total-badge {
+        background: #eef2ff;
+        color: #3730a3;
+        font-size: .8rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 20px;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .84rem;
+    }
+
+    thead th {
+        background: #f8f8f8;
+        padding: 10px 14px;
+        text-align: left;
+        font-weight: 600;
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #666;
+        border-bottom: 1.5px solid #e0e0e0;
+        white-space: nowrap;
+    }
+
+    tbody tr:nth-child(even) { background: #fafafa; }
+
+    tbody tr:hover { background: #f0f4ff; }
+
+    tbody td {
+        padding: 9px 14px;
+        border-bottom: 1px solid #f0f0f0;
+        vertical-align: top;
+        max-width: 260px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    tbody td.null-cell { color: #bbb; font-style: italic; }
+
+    /* ── Pagination ──────────────────────────────────────── */
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+        border-top: 1px solid #e8e8e8;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .pagination-info { font-size: .82rem; color: #666; }
+
+    .pagination-controls { display: flex; gap: 8px; align-items: center; }
+
+    .btn-page {
+        padding: 6px 14px;
+        border: 1.5px solid #d0d0d0;
+        border-radius: 6px;
+        background: #fff;
+        font-size: .82rem;
+        cursor: pointer;
+        color: #333;
+        font-weight: 600;
+        transition: background .15s, border-color .15s;
+    }
+
+    .btn-page:hover:not(:disabled) {
+        background: #1a1a2e;
+        color: #fff;
+        border-color: #1a1a2e;
+    }
+
+    .btn-page:disabled { opacity: .4; cursor: not-allowed; }
+
+    .btn-page.active {
+        background: #1a1a2e;
+        color: #fff;
+        border-color: #1a1a2e;
+    }
+
+    .page-jumper {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: .82rem;
+        color: #666;
+    }
+
+    .page-jumper input {
+        width: 52px;
+        padding: 5px 8px;
+        border: 1.5px solid #d0d0d0;
+        border-radius: 6px;
+        font-size: .82rem;
+        text-align: center;
+        outline: none;
+    }
+
+    .page-jumper input:focus { border-color: #1a1a2e; }
+
+    .per-page-select {
+        padding: 5px 8px;
+        border: 1.5px solid #d0d0d0;
+        border-radius: 6px;
+        font-size: .82rem;
+        outline: none;
+        background: #fff;
+        cursor: pointer;
+    }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="wrapper">
-    <div class="icon">🗄️</div>
-    <h1>{{ 'dql.title'|trans }}</h1>
-    <p>{{ 'dql.description'|trans }}</p>
-    <div class="badge">{{ 'home.feature.coming_soon'|trans }}</div>
-    <br>
-    <a href="{{ path('home') }}">← {{ 'doc_chat.back'|trans }}</a>
+<div class="page">
+
+    {# ── Header ─────────────────────────────────────────── #}
+    <div class="page-header">
+        <span style="font-size:1.8rem">🗄️</span>
+        <h1>{{ 'dql.title'|trans }}</h1>
+        <a class="back-link" href="{{ path('home') }}">← {{ 'doc_chat.back'|trans }}</a>
+    </div>
+
+    {# ── Prompt form ─────────────────────────────────────── #}
+    <div class="prompt-card">
+        <label for="prompt">{{ 'dql.prompt.label'|trans }}</label>
+        <textarea
+            id="prompt"
+            name="prompt"
+            maxlength="1000"
+            placeholder="{{ 'dql.prompt.placeholder'|trans }}"
+            autocomplete="off"
+            spellcheck="false"
+        ></textarea>
+        <div class="prompt-actions">
+            <button class="btn-run" id="run-btn" type="button">
+                <div class="spinner"></div>
+                <span class="btn-label">{{ 'dql.run'|trans }}</span>
+            </button>
+            <span class="char-count" id="char-count">0 / 1000</span>
+        </div>
+    </div>
+
+    {# ── Error area ──────────────────────────────────────── #}
+    <div class="error-box" id="error-box"></div>
+
+    {# ── SQL viewer ──────────────────────────────────────── #}
+    <details class="sql-card" id="sql-card">
+        <summary>📋 {{ 'dql.sql.label'|trans }}</summary>
+        <pre class="sql-code" id="sql-code"></pre>
+    </details>
+
+    {# ── Results table ───────────────────────────────────── #}
+    <div class="results-card" id="results-card">
+        <div class="results-header">
+            <span class="results-title">{{ 'dql.results.title'|trans }}</span>
+            <span class="total-badge" id="total-badge"></span>
+        </div>
+        <div class="table-wrap">
+            <table id="results-table">
+                <thead id="results-thead"></thead>
+                <tbody id="results-tbody"></tbody>
+            </table>
+        </div>
+        <div class="pagination" id="pagination">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <span class="pagination-info" id="pagination-info"></span>
+                <label style="font-size:.82rem;color:#666;display:flex;align-items:center;gap:6px;">
+                    {{ 'dql.pagination.per_page'|trans }}
+                    <select class="per-page-select" id="per-page">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </label>
+            </div>
+            <div class="pagination-controls" id="pagination-controls"></div>
+        </div>
+    </div>
+
 </div>
+
+<script>
+(function () {
+    'use strict';
+
+    const promptEl      = document.getElementById('prompt');
+    const runBtn        = document.getElementById('run-btn');
+    const charCount     = document.getElementById('char-count');
+    const errorBox      = document.getElementById('error-box');
+    const sqlCard       = document.getElementById('sql-card');
+    const sqlCode       = document.getElementById('sql-code');
+    const resultsCard   = document.getElementById('results-card');
+    const totalBadge    = document.getElementById('total-badge');
+    const thead         = document.getElementById('results-thead');
+    const tbody         = document.getElementById('results-tbody');
+    const paginationEl  = document.getElementById('pagination');
+    const paginationInfo = document.getElementById('pagination-info');
+    const paginationCtrl = document.getElementById('pagination-controls');
+    const perPageSelect  = document.getElementById('per-page');
+
+    let allRows     = [];
+    let allColumns  = [];
+    let currentPage = 1;
+
+    // ── Character counter ────────────────────────────────
+    promptEl.addEventListener('input', () => {
+        const len = promptEl.value.length;
+        charCount.textContent = len + ' / 1000';
+        charCount.classList.toggle('over', len >= 1000);
+    });
+
+    // ── Enter to submit (Shift+Enter = newline) ──────────
+    promptEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            runBtn.click();
+        }
+    });
+
+    // ── Submit ───────────────────────────────────────────
+    runBtn.addEventListener('click', async () => {
+        const prompt = promptEl.value.trim();
+        if (!prompt) return;
+
+        setLoading(true);
+        hideResults();
+        hideError();
+
+        try {
+            const res = await fetch('{{ path('dql_query') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showError(data.error ?? '{{ 'dql.error.unknown'|trans }}');
+                return;
+            }
+
+            renderSql(data.sql);
+            renderTable(data.columns, data.rows);
+        } catch (err) {
+            showError('{{ 'dql.error.connection'|trans }}');
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    // ── Per-page change ──────────────────────────────────
+    perPageSelect.addEventListener('change', () => {
+        currentPage = 1;
+        renderPage();
+    });
+
+    // ── Helpers ──────────────────────────────────────────
+    function setLoading(on) {
+        runBtn.disabled = on;
+        runBtn.classList.toggle('loading', on);
+    }
+
+    function hideResults() {
+        sqlCard.style.display    = 'none';
+        resultsCard.style.display = 'none';
+    }
+
+    function showError(msg) {
+        errorBox.textContent  = msg;
+        errorBox.style.display = 'block';
+    }
+
+    function hideError() {
+        errorBox.style.display = 'none';
+    }
+
+    function renderSql(sql) {
+        sqlCode.textContent   = sql;
+        sqlCard.style.display = 'block';
+        sqlCard.open          = true;
+    }
+
+    function renderTable(columns, rows) {
+        allColumns  = columns;
+        allRows     = rows;
+        currentPage = 1;
+
+        // Total badge
+        const total = rows.length;
+        totalBadge.textContent = total + ' {{ 'dql.results.rows'|trans }}';
+
+        // Header
+        thead.innerHTML = '<tr>' + columns.map(c =>
+            '<th>' + escHtml(c) + '</th>'
+        ).join('') + '</tr>';
+
+        renderPage();
+        resultsCard.style.display = 'block';
+    }
+
+    function renderPage() {
+        const perPage = parseInt(perPageSelect.value, 10);
+        const total   = allRows.length;
+        const pages   = Math.max(1, Math.ceil(total / perPage));
+
+        currentPage = Math.min(currentPage, pages);
+
+        const start = (currentPage - 1) * perPage;
+        const slice = allRows.slice(start, start + perPage);
+
+        // Rows
+        tbody.innerHTML = slice.map(row =>
+            '<tr>' + allColumns.map(col => {
+                const val = row[col];
+                if (val === null || val === undefined) {
+                    return '<td class="null-cell">NULL</td>';
+                }
+                return '<td title="' + escAttr(String(val)) + '">' + escHtml(String(val)) + '</td>';
+            }).join('') + '</tr>'
+        ).join('');
+
+        // Pagination info
+        const from = total === 0 ? 0 : start + 1;
+        const to   = Math.min(start + perPage, total);
+        paginationInfo.textContent = from + '–' + to + ' {{ 'dql.pagination.of'|trans }} ' + total;
+
+        // Page buttons (show at most 7 around current page)
+        buildPageButtons(pages, perPage);
+
+        paginationEl.style.display = total > perPage ? '' : 'flex';
+    }
+
+    function buildPageButtons(pages, perPage) {
+        paginationCtrl.innerHTML = '';
+
+        const prevBtn = pageBtn('←', currentPage === 1, () => { currentPage--; renderPage(); });
+        paginationCtrl.appendChild(prevBtn);
+
+        const range = pageRange(currentPage, pages);
+        range.forEach(item => {
+            if (item === '…') {
+                const el = document.createElement('span');
+                el.textContent = '…';
+                el.style.cssText = 'padding:0 4px;color:#999;font-size:.82rem;';
+                paginationCtrl.appendChild(el);
+            } else {
+                const btn = pageBtn(String(item), false, () => { currentPage = item; renderPage(); });
+                if (item === currentPage) btn.classList.add('active');
+                paginationCtrl.appendChild(btn);
+            }
+        });
+
+        const nextBtn = pageBtn('→', currentPage === pages, () => { currentPage++; renderPage(); });
+        paginationCtrl.appendChild(nextBtn);
+    }
+
+    function pageBtn(label, disabled, onClick) {
+        const btn = document.createElement('button');
+        btn.className   = 'btn-page';
+        btn.textContent = label;
+        btn.disabled    = disabled;
+        btn.addEventListener('click', onClick);
+        return btn;
+    }
+
+    /** Generates a compact page range with ellipsis, e.g. [1, '…', 4, 5, 6, '…', 20] */
+    function pageRange(current, total) {
+        if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+        const pages = new Set([1, total, current]);
+        for (let i = current - 1; i <= current + 1; i++) {
+            if (i > 0 && i <= total) pages.add(i);
+        }
+
+        const sorted = [...pages].sort((a, b) => a - b);
+        const result = [];
+
+        sorted.forEach((p, idx) => {
+            if (idx > 0 && p - sorted[idx - 1] > 1) result.push('…');
+            result.push(p);
+        });
+
+        return result;
+    }
+
+    function escHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function escAttr(str) {
+        return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+})();
+</script>
 {% endblock %}

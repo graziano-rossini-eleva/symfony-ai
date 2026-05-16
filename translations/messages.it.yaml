@@ -100,7 +100,17 @@ file_parser.error.prompt_too_long: 'La descrizione supera il limite di 1000 cara
 file_parser.error.extraction_failed: 'Impossibile estrarre i dati. Riprova o utilizza un file diverso.'
 file_parser.error.unknown: 'Errore sconosciuto. Riprova.'
 
-# DQL Assistant placeholder
-dql.page_title: 'Assistente DQL — In arrivo'
+# DQL Assistant
+dql.page_title: 'Assistente DQL'
 dql.title: 'Assistente DQL'
-dql.description: 'Questa funzione permetterà di interrogare il database in linguaggio naturale con query generate dall''AI in sola lettura.'
+dql.description: 'Interroga il database in linguaggio naturale: l''AI genera la query SQL in sola lettura ed esegue i risultati.'
+dql.prompt.label: 'Descrivi quali dati vuoi estrarre dal database'
+dql.prompt.placeholder: "Es: mostrami i 10 corsi più recensiti con la media del voto, ordinati per media decrescente"
+dql.run: 'Genera ed esegui'
+dql.sql.label: 'Query SQL generata'
+dql.results.title: 'Risultati'
+dql.results.rows: 'righe trovate'
+dql.pagination.per_page: 'Righe per pagina:'
+dql.pagination.of: 'di'
+dql.error.unknown: 'Errore sconosciuto. Riprova.'
+dql.error.connection: 'Errore di connessione. Controlla la rete e riprova.'
