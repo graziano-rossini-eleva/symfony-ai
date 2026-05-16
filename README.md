@@ -9,7 +9,7 @@ Each feature in this project exercises a different capability of the bundle thro
 | Feature | Status | Description |
 |---|---|---|
 | **Doc Chat** | Available | Upload a Markdown file and chat with an AI assistant about its content. Supports email escalation to a human support team. |
-| **File Parser** | Coming soon | Upload PDF, CSV, or DOCX files and extract structured data via AI. |
+| **File Parser** | Available | Upload a PDF and describe what to extract in plain language. The AI returns a structured JSON object. |
 | **DQL Assistant** | Coming soon | Query the database in plain language; the AI generates safe read-only DQL queries. |
 
 ## Tech Stack
@@ -27,12 +27,14 @@ src/
 ├── Controller/
 │   ├── HomeController.php          # Feature selection landing page
 │   ├── DocChatController.php       # Doc Chat: upload + chat + email escalation
-│   ├── FileParserController.php    # File Parser (placeholder)
+│   ├── FileParserController.php    # File Parser: upload + extract
 │   └── DqlController.php           # DQL Assistant (placeholder)
 ├── Service/
-│   └── DocChat/
-│       ├── ChatService.php         # AI prompt, agent call, tag detection
-│       └── SupportEmailService.php # Email assembly, transcript, history sanitisation
+│   ├── DocChat/
+│   │   ├── ChatService.php         # AI prompt, agent call, tag detection
+│   │   └── SupportEmailService.php # Email assembly, transcript, history sanitisation
+│   └── FileParser/
+│       └── FileParserService.php   # PDF read, prompt injection mitigation, JSON normalisation
 └── EventSubscriber/
     └── SecurityHeadersSubscriber.php
 templates/
@@ -79,15 +81,20 @@ symfony server:start
 
 ## AI Configuration
 
-Model configured in `config/packages/ai.yaml`:
+Model and options configured in `config/packages/ai.yaml`:
 
 ```yaml
 ai:
     agent:
         default:
             platform: 'ai.platform.anthropic'
-            model: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+            model:
+                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+                options:
+                    max_tokens: 8096
 ```
+
+`max_tokens` is set to **8096** explicitly because the bundle default is 1000, which is too low for structured JSON responses over multi-page PDFs. With the default limit the model's output gets truncated mid-JSON, producing an unparseable response. 8096 matches Claude Sonnet's output token ceiling and ensures complete responses even for documents with many fields.
 
 To switch model, replace the constant with any value from `Symfony\AI\Platform\Bridge\Anthropic\Claude`.
 

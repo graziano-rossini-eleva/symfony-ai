@@ -194,13 +194,13 @@
 <script>
 window.FileParser = {
     routes: {
-        parse: {{ path('file_parser_parse')|json_encode }},
+        parse: {{ path('file_parser_parse')|json_encode|raw }},
     },
     i18n: {
-        loading:          {{ 'file_parser.loading'|trans|json_encode }},
-        copied:           {{ 'file_parser.result.copied'|trans|json_encode }},
-        errorUnknown:     {{ 'file_parser.error.unknown'|trans|json_encode }},
-        errorFileTooLarge: {{ 'file_parser.error.file_too_large'|trans|json_encode }},
+        loading:           {{ 'file_parser.loading'|trans|json_encode|raw }},
+        copied:            {{ 'file_parser.result.copied'|trans|json_encode|raw }},
+        errorUnknown:      {{ 'file_parser.error.unknown'|trans|json_encode|raw }},
+        errorFileTooLarge: {{ 'file_parser.error.file_too_large'|trans|json_encode|raw }},
     },
 };
 </script>

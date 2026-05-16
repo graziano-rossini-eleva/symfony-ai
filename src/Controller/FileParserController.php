@@ -17,7 +17,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * Allows users to upload a PDF file and provide a natural-language prompt
  * describing which data to extract. Returns the extracted data as JSON.
  *
- * All routes require an authenticated user with at least ROLE_USER.
+ * No authentication is enforced — this is a local sandbox project.
  */
 #[Route('/file-parser')]
 class FileParserController extends AbstractController

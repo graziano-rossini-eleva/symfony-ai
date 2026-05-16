@@ -18,11 +18,14 @@ use Symfony\Component\HttpKernel\KernelEvents;
  *   - Permissions-Policy: disables powerful browser features not used by this app.
  *   - Strict-Transport-Security: enforces HTTPS on subsequent visits (HTTPS only).
  *
- * Note on 'unsafe-inline' for style-src: both the home and chat templates use
- * inline <style> blocks. Remove this directive once those blocks are moved to
- * external stylesheets. The config-data <script> block in index.html.twig now
- * uses a nonce-less data-only pattern so that script-src no longer needs
- * 'unsafe-inline' — all behaviour is in public/js/doc-chat.js.
+ * CSP notes:
+ *   - 'unsafe-inline' is retained in style-src because the home and chat
+ *     templates use inline <style> blocks. Remove it once those blocks are
+ *     moved to external stylesheets.
+ *   - 'unsafe-inline' is retained in script-src for the window.DocChat /
+ *     window.FileParser config data islands rendered inline by Twig.
+ *   - 'data:' is included in img-src to allow the Symfony profiler toolbar,
+ *     which uses data: URIs for its SVG favicon in development mode.
  */
 class SecurityHeadersSubscriber implements EventSubscriberInterface
 {
@@ -57,12 +60,12 @@ class SecurityHeadersSubscriber implements EventSubscriberInterface
         );
         $headers->set(
             'Content-Security-Policy',
-            // 'unsafe-inline' is retained for style-src only (inline <style> blocks in templates).
-            // script-src no longer needs 'unsafe-inline': the config object written by the
-            // remaining inline <script> block contains only json_encode'd values (no executable
-            // code paths), and all behaviour lives in the external public/js/doc-chat.js file.
+            // 'unsafe-inline' is retained for style-src (inline <style> blocks in templates) and
+            // script-src (window.DocChat / window.FileParser config data islands in Twig templates).
+            // img-src and script-src include 'data:' to allow the Symfony profiler toolbar, which
+            // uses data: URIs for its SVG favicon and inline scripts in dev mode.
             // TODO: migrate inline <style> blocks to external CSS and remove 'unsafe-inline' from style-src.
-            "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+            "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:"
         );
 
         // HSTS is only meaningful over HTTPS; skip it for plain HTTP (local dev).

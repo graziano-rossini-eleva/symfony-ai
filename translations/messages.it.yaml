@@ -86,7 +86,7 @@ file_parser.subtitle: 'Carica un PDF e descrivi quali dati estrarre. L''AI resti
 file_parser.description: 'Carica documenti PDF e lascia che l''AI estragga i dati strutturati che ti servono.'
 file_parser.upload.label: 'File PDF da analizzare'
 file_parser.prompt.label: 'Cosa vuoi estrarre?'
-file_parser.prompt.placeholder: 'Es: Estrai nome, cognome, data di nascita e codice fiscale'
+file_parser.prompt.placeholder: 'Extract all dates from the PDF.'
 file_parser.submit: 'Estrai dati'
 file_parser.loading: 'Analisi in corso, attendi...'
 file_parser.result.title: 'Dati estratti'
