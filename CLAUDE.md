@@ -89,12 +89,21 @@ This applies to:
 - Added or changed properties
 - Added or changed methods (getters, setters, lifecycle callbacks, domain methods)
 
-The agent must document:
-- Class level: domain description, table name, constraints, business rules
-- Every property: `@var` with type and short description
-- Every method: `@param`, `@return`, `@throws` where applicable, with description of non-obvious behaviour
+Every element **must** have a PHPDoc block — no exceptions:
 
-Do not skip this step even for trivial changes.
+| Element | Required tags |
+|---|---|
+| Class | Description, `@package` |
+| Property | `@var` with type + description |
+| Method / function | Description, `@param` (all params), `@return`, `@throws` if applicable |
+| Constructor | Description of what it initialises |
+| Lifecycle callback | Description of when it runs and what it sets |
+
+Rules:
+- A description is required even when the method name seems self-explanatory — document *behaviour*, not just the name.
+- `@param` and `@return` must always include a short inline description, not just the type.
+- `@throws` is mandatory whenever an exception can be raised inside the method.
+- Do not skip this step even for trivial changes or single-line methods.
 
 ## Environment Variables
 
