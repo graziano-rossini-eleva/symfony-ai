@@ -105,6 +105,20 @@ Rules:
 - `@throws` is mandatory whenever an exception can be raised inside the method.
 - Do not skip this step even for trivial changes or single-line methods.
 
+### Translations
+
+**IMPORTANT: Every user-facing string must be translated for all languages available in the project.**
+
+Currently active translation files:
+- `translations/messages.it.yaml` — Italian (default locale)
+
+Rules:
+- Never hardcode a user-facing string in a Twig template, controller, or service. Always use the `trans()` filter/function or the `TranslatorInterface`.
+- Every new key added to one translation file must be added to **all** other translation files in the same commit.
+- Use dot-notation keys grouped by feature (e.g. `course.title`, `enrollment.completed_at`).
+- When a new language file is added to `translations/`, back-fill all existing keys immediately.
+- PHP exceptions and log messages do not need translation. Only strings visible to end users do.
+
 ## Environment Variables
 
 | Variable | Purpose |
