@@ -201,7 +201,7 @@ Represents reviews left by students on courses.
 | enrollment_id | BIGINT            | NOT NULL, FOREIGN KEY                                  |
 | course_id     | BIGINT            | NOT NULL, FOREIGN KEY                                  |
 | user_id       | BIGINT            | NOT NULL, FOREIGN KEY                                  |
-| rating        | TINYINT           | NOT NULL, CHECK (rating BETWEEN 1 AND 5)               |
+| rating        | SMALLINT          | NOT NULL, CHECK (rating BETWEEN 1 AND 5)               |
 | comment       | TEXT              | NULL                                                   |
 | created_at    | DATETIME          | NOT NULL DEFAULT CURRENT_TIMESTAMP                     |
 | deleted       | TINYINT(1)        | NOT NULL DEFAULT 0                                     |
@@ -223,6 +223,7 @@ Notes:
 - UNIQUE on `enrollment_id` enforces one review per enrollment (implicitly one per user per course).
 - `course_id` and `user_id` are kept as direct columns for query convenience, but are derivable from `enrollment_id`.
 - The CHECK constraint on `rating` is enforced at database level (MySQL 8+ honors CHECK constraints).
+- `rating` is mapped as `SMALLINT` in the Doctrine entity (`#[ORM\Column(type: 'smallint')]`) because Doctrine ORM does not have a native `tinyint` type.
 
 ---
 
@@ -302,27 +303,39 @@ Example data:
 
 ---
 
-# Suggested Doctrine Entity Names
+# Doctrine Entity Names
 
-- User
-- Category
-- Course
-- Lesson
-- Enrollment
-- LessonProgress
-- Review
-- Menu
+All entities are implemented in `src/Entity/`:
+
+- `User` → `App\Entity\User`
+- `Category` → `App\Entity\Category`
+- `Course` → `App\Entity\Course`
+- `Lesson` → `App\Entity\Lesson`
+- `Enrollment` → `App\Entity\Enrollment`
+- `LessonProgress` → `App\Entity\LessonProgress`
+- `Review` → `App\Entity\Review`
+- `Menu` → `App\Entity\Menu`
+
+Repository classes live in `src/Repository/` (one per entity).
 
 ---
 
-# Suggested Symfony Conventions
+# Symfony Conventions Applied
 
-- Use Doctrine ORM PHP attributes (`#[ORM\Entity]`, `#[ORM\Column]`, etc.)
-- Use Repository classes for each entity with custom query methods
-- Use Doctrine lifecycle callbacks or listeners for `created_at` / `updated_at` / `published_at` / `completed_at`
-- Use Symfony Voters for role-based authorization (instructor-only course creation, student-only reviews)
-- Apply `SoftDeleteable` behavior (e.g. via Gedmo/Doctrine Extensions) or implement manually with `deleted_at`
-- Consider UUIDs instead of BIGINT ids for public-facing resources (courses, users)
+- Doctrine ORM PHP attributes (`#[ORM\Entity]`, `#[ORM\Column]`, etc.) ✓
+- Repository classes for each entity ✓
+- Doctrine lifecycle callbacks (`#[ORM\PreUpdate]`, constructor) for `created_at` / `updated_at` / `published_at` / `completed_at` ✓
+- Soft-delete implemented manually via `deleted` flag + `deletedAt` timestamp (no external library) ✓
+- Symfony Voters for role-based authorization — not yet implemented
+- UUIDs instead of BIGINT ids — not yet implemented
+
+## Note on ORM-mapped indexes
+
+The following indexes are defined in this document but are **not yet mapped** in the Doctrine entity attributes (i.e. not created by the current migration):
+
+`idx_users_deleted_at`, `idx_categories_deleted_at`, `idx_courses_published`, `idx_courses_level`, `idx_courses_deleted_at`, `idx_lessons_deleted_at`, `idx_enrollment_deleted_at`, `idx_lesson_progress_deleted_at`, `idx_reviews_deleted_at`, `idx_menus_position`, `idx_menus_visible`
+
+To add them, annotate each entity with `#[ORM\Index(name: '...', columns: ['...'])]` and generate a new migration.
 
 ---
 
