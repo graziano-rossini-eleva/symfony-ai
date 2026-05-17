@@ -13,7 +13,7 @@ ai:
                 options:
                     max_tokens: 8096
             tools:
-                - App\Tool\DatabaseQueryTool
+                - App\Tool\ExecuteSqlTool
 
         # Four-tool report agent demonstrating the full orchestration pattern:
         # context (get_current_date) → retrieval (execute_sql)
