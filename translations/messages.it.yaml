@@ -10,6 +10,8 @@ home.feature.sql.title: 'Assistente SQL'
 home.feature.sql.description: "Interroga il database in linguaggio naturale: l'AI genera la query in sola lettura."
 home.feature.advisor.title: 'Advisor AI'
 home.feature.advisor.description: "Fai domande complesse sui dati della piattaforma: l'AI interroga autonomamente il database più volte e sintetizza una risposta in linguaggio naturale."
+home.feature.report.title: 'Report Analitico'
+home.feature.report.description: "Genera report completi scaricabili orchestrando quattro tool in sequenza: data corrente, query DB, calcolo statistiche preciso e salvataggio file."
 home.feature.coming_soon: 'In arrivo'
 doc_chat.page_title: 'Chat Documentazione — Carica file'
 doc_chat.back: 'Torna alla home'
@@ -105,6 +107,29 @@ sql.examples.5: 'Distribuzione dei corsi per livello (beginner / intermediate / 
 sql.examples.6: 'Le 20 recensioni più recenti con nome utente, titolo corso e voto'
 sql.examples.7: 'Corsi con progresso medio degli iscritti superiore al 50%'
 sql.examples.8: 'Categorie con più corsi pubblicati, ordinate per numero di corsi'
+
+# Report Analitico — four-tool orchestration: context → retrieval → computation → output
+report.page_title: 'Report Analitico'
+report.title: 'Report Analitico'
+report.subtitle: "Descrivi il report che vuoi generare. L'agente eseguirà automaticamente quattro fasi: recupererà la data corrente, interrogherà il database, calcolerà le statistiche e salverà il report scaricabile."
+report.pipeline.context: 'Contesto'
+report.pipeline.retrieval: 'Dati'
+report.pipeline.computation: 'Statistiche'
+report.pipeline.output: 'Report'
+report.prompt.label: 'Cosa vuoi analizzare?'
+report.prompt.placeholder: 'Es: Genera un report completo sulla salute della piattaforma con statistiche su iscrizioni, rating e completamenti'
+report.examples.label: 'Esempi'
+report.examples.1: 'Report completo sulla salute della piattaforma: iscrizioni, rating e completamenti'
+report.examples.2: 'Analisi delle performance degli istruttori con statistiche sui voti e numero di studenti'
+report.examples.3: 'Report sulle iscrizioni di questo mese con distribuzione per livello di corso'
+report.examples.4: 'Analisi dei corsi meno performanti: rating bassi e tassi di completamento scarsi'
+report.examples.5: 'Sintesi della piattaforma: utenti, corsi, categorie e KPI principali'
+report.generate: 'Genera report'
+report.generating: 'Generazione in corso...'
+report.summary.title: 'Sintesi del report'
+report.download: 'Scarica report (.md)'
+report.error.unknown: 'Errore sconosciuto. Riprova.'
+report.error.connection: 'Errore di connessione. Controlla la rete e riprova.'
 
 # Advisor AI — multi-step tool calling
 advisor.page_title: 'Advisor AI'

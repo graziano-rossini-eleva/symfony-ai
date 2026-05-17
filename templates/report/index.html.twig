@@ -1,0 +1,443 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'report.page_title'|trans }}{% endblock %}
+
+{% block stylesheets %}
+<style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #f5f5f5;
+        min-height: 100vh;
+        color: #1a1a2e;
+    }
+
+    .page {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 8px;
+    }
+
+    .page-header h1 { font-size: 1.4rem; font-weight: 700; flex: 1; }
+
+    .back-link { font-size: .85rem; color: #666; text-decoration: none; }
+    .back-link:hover { color: #1a1a2e; }
+
+    .subtitle {
+        font-size: .88rem;
+        color: #888;
+        margin-bottom: 28px;
+        line-height: 1.5;
+    }
+
+    /* ── Pipeline badges ────────────────────────────────── */
+    .pipeline {
+        display: flex;
+        gap: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 28px;
+    }
+
+    .pipeline-step {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: #fff;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: .76rem;
+        color: #555;
+    }
+
+    .pipeline-arrow {
+        color: #ccc;
+        font-size: .85rem;
+        padding: 0 4px;
+        flex-shrink: 0;
+    }
+
+    .step-icon {
+        font-size: .95rem;
+    }
+
+    .step-label { font-weight: 600; }
+    .step-tool  { color: #999; font-family: monospace; font-size: .72rem; }
+
+    /* ── Prompt card ────────────────────────────────────── */
+    .prompt-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .prompt-card label {
+        display: block;
+        font-weight: 600;
+        font-size: .9rem;
+        margin-bottom: 10px;
+    }
+
+    .prompt-card textarea {
+        width: 100%;
+        min-height: 90px;
+        padding: 12px 14px;
+        border: 1.5px solid #d0d0d0;
+        border-radius: 8px;
+        font-size: .95rem;
+        font-family: inherit;
+        resize: vertical;
+        line-height: 1.5;
+        outline: none;
+        transition: border-color .2s;
+    }
+
+    .prompt-card textarea:focus { border-color: #1a1a2e; }
+
+    .prompt-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .char-count { font-size: .78rem; color: #aaa; margin-left: auto; }
+    .char-count.over { color: #c0392b; }
+
+    /* ── Example chips ───────────────────────────────────── */
+    .examples-label {
+        font-size: .78rem;
+        font-weight: 600;
+        color: #888;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .chip {
+        font-size: .78rem;
+        padding: 5px 12px;
+        border: 1.5px solid #d0d0d0;
+        border-radius: 20px;
+        background: #fafafa;
+        color: #444;
+        cursor: pointer;
+        transition: background .15s, border-color .15s, color .15s;
+        line-height: 1.4;
+    }
+
+    .chip:hover { background: #1a1a2e; border-color: #1a1a2e; color: #fff; }
+
+    /* ── Submit button ──────────────────────────────────── */
+    .btn-generate {
+        padding: 10px 24px;
+        background: #1a1a2e;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: .9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity .2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-generate:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-generate:not(:disabled):hover { opacity: .85; }
+
+    .spinner {
+        width: 16px; height: 16px;
+        border: 2px solid rgba(255,255,255,.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin .65s linear infinite;
+        display: none;
+    }
+
+    .btn-generate.loading .spinner        { display: block; }
+    .btn-generate.loading .btn-label      { display: none; }
+    .btn-generate.loading .thinking-label { display: inline; }
+    .thinking-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ──────────────────────────────────────────── */
+    .error-box {
+        background: #fff5f5;
+        border: 1.5px solid #f5c6c6;
+        border-radius: 10px;
+        padding: 14px 18px;
+        color: #c0392b;
+        font-size: .9rem;
+        margin-bottom: 24px;
+        display: none;
+    }
+
+    /* ── Result card ────────────────────────────────────── */
+    .result-card {
+        background: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 14px;
+        overflow: hidden;
+        display: none;
+    }
+
+    .result-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 20px;
+        border-bottom: 1px solid #e8e8e8;
+    }
+
+    .result-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: .9rem;
+    }
+
+    .btn-download {
+        display: none;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 16px;
+        background: #1a1a2e;
+        color: #fff;
+        border-radius: 8px;
+        font-size: .82rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: opacity .2s;
+        flex-shrink: 0;
+    }
+
+    .btn-download.visible { display: flex; }
+    .btn-download:hover   { opacity: .85; }
+
+    .result-body {
+        padding: 20px;
+        font-size: .92rem;
+        line-height: 1.75;
+        color: #222;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page">
+
+    {# ── Header ──────────────────────────────────────────── #}
+    <div class="page-header">
+        <span style="font-size:1.8rem">📊</span>
+        <h1>{{ 'report.title'|trans }}</h1>
+        <a class="back-link" href="{{ path('home') }}">← {{ 'doc_chat.back'|trans }}</a>
+    </div>
+    <p class="subtitle">{{ 'report.subtitle'|trans }}</p>
+
+    {# ── Tool pipeline visualization ─────────────────────── #}
+    <div class="pipeline">
+        <div class="pipeline-step">
+            <span class="step-icon">🕐</span>
+            <div>
+                <div class="step-label">{{ 'report.pipeline.context'|trans }}</div>
+                <div class="step-tool">get_current_date</div>
+            </div>
+        </div>
+        <span class="pipeline-arrow">→</span>
+        <div class="pipeline-step">
+            <span class="step-icon">🗄️</span>
+            <div>
+                <div class="step-label">{{ 'report.pipeline.retrieval'|trans }}</div>
+                <div class="step-tool">query_database ×N</div>
+            </div>
+        </div>
+        <span class="pipeline-arrow">→</span>
+        <div class="pipeline-step">
+            <span class="step-icon">📐</span>
+            <div>
+                <div class="step-label">{{ 'report.pipeline.computation'|trans }}</div>
+                <div class="step-tool">calculate_statistics ×N</div>
+            </div>
+        </div>
+        <span class="pipeline-arrow">→</span>
+        <div class="pipeline-step">
+            <span class="step-icon">💾</span>
+            <div>
+                <div class="step-label">{{ 'report.pipeline.output'|trans }}</div>
+                <div class="step-tool">save_report</div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Prompt form ─────────────────────────────────────── #}
+    <div class="prompt-card">
+        <label for="prompt">{{ 'report.prompt.label'|trans }}</label>
+        <textarea
+            id="prompt"
+            maxlength="1000"
+            placeholder="{{ 'report.prompt.placeholder'|trans }}"
+            autocomplete="off"
+            spellcheck="false"
+        ></textarea>
+
+        <div class="examples-label">{{ 'report.examples.label'|trans }}</div>
+        <div class="chips">
+            <button class="chip" type="button" data-q="{{ 'report.examples.1'|trans }}">{{ 'report.examples.1'|trans }}</button>
+            <button class="chip" type="button" data-q="{{ 'report.examples.2'|trans }}">{{ 'report.examples.2'|trans }}</button>
+            <button class="chip" type="button" data-q="{{ 'report.examples.3'|trans }}">{{ 'report.examples.3'|trans }}</button>
+            <button class="chip" type="button" data-q="{{ 'report.examples.4'|trans }}">{{ 'report.examples.4'|trans }}</button>
+            <button class="chip" type="button" data-q="{{ 'report.examples.5'|trans }}">{{ 'report.examples.5'|trans }}</button>
+        </div>
+
+        <div class="prompt-actions">
+            <button class="btn-generate" id="gen-btn" type="button">
+                <div class="spinner"></div>
+                <span class="btn-label">{{ 'report.generate'|trans }}</span>
+                <span class="thinking-label">{{ 'report.generating'|trans }}</span>
+            </button>
+            <span class="char-count" id="char-count">0 / 1000</span>
+        </div>
+    </div>
+
+    {# ── Error ───────────────────────────────────────────── #}
+    <div class="error-box" id="error-box"></div>
+
+    {# ── Result ──────────────────────────────────────────── #}
+    <div class="result-card" id="result-card">
+        <div class="result-header">
+            <div class="result-header-left">
+                <span>📊</span>
+                <span>{{ 'report.summary.title'|trans }}</span>
+            </div>
+            <a class="btn-download" id="download-btn" href="#" download>
+                ⬇ {{ 'report.download'|trans }}
+            </a>
+        </div>
+        <div class="result-body" id="result-body"></div>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    const promptEl   = document.getElementById('prompt');
+    const genBtn     = document.getElementById('gen-btn');
+    const charCount  = document.getElementById('char-count');
+    const errorBox   = document.getElementById('error-box');
+    const resultCard = document.getElementById('result-card');
+    const resultBody = document.getElementById('result-body');
+    const downloadBtn = document.getElementById('download-btn');
+
+    // ── Char counter ─────────────────────────────────────
+    promptEl.addEventListener('input', () => {
+        const len = promptEl.value.length;
+        charCount.textContent = len + ' / 1000';
+        charCount.classList.toggle('over', len >= 1000);
+    });
+
+    // ── Enter to submit ──────────────────────────────────
+    promptEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); genBtn.click(); }
+    });
+
+    // ── Chips ────────────────────────────────────────────
+    document.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            promptEl.value = chip.dataset.q;
+            promptEl.dispatchEvent(new Event('input'));
+            promptEl.focus();
+        });
+    });
+
+    // ── Submit ───────────────────────────────────────────
+    genBtn.addEventListener('click', async () => {
+        const prompt = promptEl.value.trim();
+        if (!prompt) return;
+
+        setLoading(true);
+        hideError();
+        hideResult();
+
+        try {
+            const res = await fetch('{{ path('report_generate') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt }),
+            });
+
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                showError('{{ 'report.error.unknown'|trans }}');
+                return;
+            }
+
+            if (!res.ok) {
+                showError(data.error ?? '{{ 'report.error.unknown'|trans }}');
+                return;
+            }
+
+            showResult(data.summary, data.downloadToken);
+
+        } catch {
+            showError('{{ 'report.error.connection'|trans }}');
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    function setLoading(on) {
+        genBtn.disabled = on;
+        genBtn.classList.toggle('loading', on);
+    }
+
+    function hideError()  { errorBox.style.display = 'none'; }
+    function hideResult() {
+        resultCard.style.display = 'none';
+        downloadBtn.classList.remove('visible');
+        downloadBtn.href = '#';
+    }
+
+    function showError(msg) {
+        errorBox.textContent   = msg;
+        errorBox.style.display = 'block';
+    }
+
+    function showResult(summary, downloadToken) {
+        resultBody.textContent    = summary;
+        resultCard.style.display  = 'block';
+
+        if (downloadToken) {
+            downloadBtn.href = '{{ path('report_download', {token: '__TOKEN__'}) }}'.replace('__TOKEN__', downloadToken);
+            downloadBtn.classList.add('visible');
+        }
+
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+})();
+</script>
+{% endblock %}

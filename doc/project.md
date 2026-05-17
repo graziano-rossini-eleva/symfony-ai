@@ -1,5 +1,9 @@
 # SymfonyAI — Documentazione del Progetto
 
+## Architettura — schema visuale
+
+![Architecture & Call Flow](../architecture.png)
+
 ## Panoramica
 
 **SymfonyAI** è un'applicazione sandbox in Symfony 7.4 per testare le funzionalità del [Symfony AI Bundle](https://symfony.com/doc/current/ai.html). Ogni funzione esercita una diversa capacità del bundle attraverso un caso d'uso concreto. Fa parte dell'ecosistema Eleva Backoffice.

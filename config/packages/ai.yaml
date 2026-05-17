@@ -14,3 +14,22 @@ ai:
                     max_tokens: 8096
             tools:
                 - App\Tool\DatabaseQueryTool
+
+        # Four-tool report agent demonstrating the full orchestration pattern:
+        # context (get_current_date) → retrieval (execute_sql)
+        # → computation (calculate_statistics) → output (save_report)
+        #
+        # Uses ExecuteSqlTool instead of DatabaseQueryTool: the schema is injected
+        # into the system prompt so the agent writes SQL directly, avoiding the
+        # inner AI call that DatabaseQueryTool makes and eliminating rate-limit risk.
+        report:
+            platform: 'ai.platform.anthropic'
+            model:
+                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+                options:
+                    max_tokens: 8096
+            tools:
+                - App\Tool\GetCurrentDateTool
+                - App\Tool\ExecuteSqlTool
+                - App\Tool\CalculateStatisticsTool
+                - App\Tool\SaveReportTool
