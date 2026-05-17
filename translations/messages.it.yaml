@@ -112,7 +112,6 @@ sql.examples.8: 'Categorie con più corsi pubblicati, ordinate per numero di cor
 report.page_title: 'Report Analitico'
 report.title: 'Report Analitico'
 report.subtitle: "Descrivi il report che vuoi generare. L'agente eseguirà automaticamente quattro fasi: recupererà la data corrente, interrogherà il database, calcolerà le statistiche e salverà il report scaricabile."
-report.pipeline.context: 'Contesto'
 report.pipeline.retrieval: 'Dati'
 report.pipeline.computation: 'Statistiche'
 report.pipeline.output: 'Report'

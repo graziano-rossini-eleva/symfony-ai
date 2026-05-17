@@ -29,7 +29,6 @@ ai:
                 options:
                     max_tokens: 8096
             tools:
-                - App\Tool\GetCurrentDateTool
                 - App\Tool\ExecuteSqlTool
                 - App\Tool\CalculateStatisticsTool
                 - App\Tool\SaveReportTool

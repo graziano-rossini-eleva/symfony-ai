@@ -258,18 +258,10 @@
     {# ── Tool pipeline visualization ─────────────────────── #}
     <div class="pipeline">
         <div class="pipeline-step">
-            <span class="step-icon">🕐</span>
-            <div>
-                <div class="step-label">{{ 'report.pipeline.context'|trans }}</div>
-                <div class="step-tool">get_current_date</div>
-            </div>
-        </div>
-        <span class="pipeline-arrow">→</span>
-        <div class="pipeline-step">
             <span class="step-icon">🗄️</span>
             <div>
                 <div class="step-label">{{ 'report.pipeline.retrieval'|trans }}</div>
-                <div class="step-tool">query_database ×N</div>
+                <div class="step-tool">execute_sql ×N</div>
             </div>
         </div>
         <span class="pipeline-arrow">→</span>

@@ -13,36 +13,30 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 /**
  * Orchestrates the multi-tool report-generation agent.
  *
- * This service demonstrates a four-step agentic pipeline where each step
- * maps to a distinct tool category:
+ * This service demonstrates a three-tool agentic pipeline:
  *
- *   1. CONTEXT    — `get_current_date`    : anchors the agent to real-world time
- *   2. RETRIEVAL  — `execute_sql`         : fetches raw data from the platform DB
- *   3. COMPUTATION— `calculate_statistics`: derives precise aggregates from raw numbers
- *   4. OUTPUT     — `save_report`         : persists the final Markdown report to disk
+ *   1. RETRIEVAL   — `execute_sql`          : fetches raw data from the platform DB
+ *   2. COMPUTATION — `calculate_statistics` : derives precise aggregates from raw numbers
+ *   3. OUTPUT      — `save_report`          : persists the final Markdown report to disk
+ *
+ * The current date is injected directly into the system prompt by PHP, removing
+ * the need for a `get_current_date` tool call and saving one API round-trip.
+ * This is important on the Anthropic free tier (5 req/min, 10K tokens/min).
  *
  * WHY `execute_sql` INSTEAD OF `query_database`
  * ---------------------------------------------
- * `query_database` (used by the Advisor) translates natural language to SQL via
- * a second inner Claude call. For the report agent this would mean:
- *
- *   outer call → N × inner SQL-generation calls → outer call (results) → …
- *
- * With 4-6 data queries per report that is 9-13 total API calls, reliably
- * hitting Anthropic's per-minute rate limit.
- *
- * The report agent receives the full database schema in its system prompt and
- * can write SQL directly. `execute_sql` just validates and runs it — zero
- * extra API calls, no rate-limit risk.
- *
- * The schema is loaded from `doc/db.md` once per request and injected into the
- * system prompt at construction time.
+ * `query_database` translates natural language to SQL via a second inner Claude
+ * call. The report agent receives the compact schema in its system prompt and
+ * writes SQL directly — `execute_sql` only validates and runs it, zero extra
+ * API calls per query.
  */
 class ReportService
 {
     private const SYSTEM_PROMPT_TEMPLATE = <<<PROMPT
 Sei un generatore di report analitico professionale per una piattaforma di corsi online.
 Rispondi sempre in italiano. Sei preciso, metodico e non inventi mai dati.
+
+Data odierna: {DATE}
 
 ════════════════════════════════════════════════════════════
 SCHEMA DEL DATABASE
@@ -55,37 +49,31 @@ ISTRUZIONI SQL
 - Scrivi query SQL SELECT usando i nomi esatti dello schema (snake_case).
 - Filtra sempre i record eliminati: WHERE <tabella>.deleted = 0
 - Nessun LIMIT nelle query: la paginazione è gestita altrove.
-- Nessun INSERT, UPDATE, DELETE, DROP o ALTER.
+- Solo SELECT: nessun INSERT, UPDATE, DELETE, DROP o ALTER.
 
 ════════════════════════════════════════════════════════════
-PROCESSO OBBLIGATORIO — esegui sempre queste quattro fasi in ordine
+PROCESSO — tre fasi in ordine
 ════════════════════════════════════════════════════════════
 
-FASE 1 — CONTESTO  →  tool: get_current_date
-─────────────────────────────────────────────
-Chiama `get_current_date` per conoscere la data odierna.
-Usala per costruire filtri temporali precisi nelle query (es. ultimi 30 giorni).
-
-FASE 2 — RACCOLTA DATI  →  tool: execute_sql  (N volte)
-────────────────────────────────────────────────────────
+FASE 1 — RACCOLTA DATI  →  tool: execute_sql  (max 3 volte)
+────────────────────────────────────────────────────────────
 Scrivi query SQL SELECT e chiamale tramite `execute_sql`.
-Ogni chiamata deve coprire un aspetto distinto del report.
-Pianifica tutte le query necessarie prima di iniziare.
+Pianifica le query in modo da coprire tutti gli aspetti necessari
+con il minor numero di chiamate possibile (massimo 3).
 
-FASE 3 — CALCOLO STATISTICHE  →  tool: calculate_statistics  (N volte)
-────────────────────────────────────────────────────────────────────────
-Per ogni serie numerica significativa (rating, percentuali, conteggi, prezzi)
-chiama `calculate_statistics` passando i valori come array JSON.
+FASE 2 — CALCOLO STATISTICHE  →  tool: calculate_statistics  (se necessario)
+──────────────────────────────────────────────────────────────────────────────
+Per serie numeriche significative (rating, percentuali, conteggi) chiama
+`calculate_statistics` passando i valori come array JSON.
 NON calcolare mai statistiche a mente: usa sempre il tool per precisione.
 
-FASE 4 — OUTPUT  →  tool: save_report  (1 volta)
+FASE 3 — OUTPUT  →  tool: save_report  (1 volta)
 ─────────────────────────────────────────────────
 Assembla il report completo in Markdown con:
-- Titolo principale con data
+- Titolo principale con la data odierna
 - Sezioni tematiche con intestazioni ## e ###
 - Tabelle per i dati tabulari
-- Valori statistici esatti dal tool (non approssimazioni)
-- Sezione finale "Metodologia" con le query eseguite
+- Valori statistici esatti dal tool
 
 Chiama `save_report` con titolo e contenuto Markdown completo.
 Poi fornisci una sintesi di 3-5 frasi sui punti salienti del report.
@@ -95,15 +83,25 @@ REGOLE GENERALI
 ════════════════════════════════════════════════════════════
 - Non inventare dati: cita solo ciò che i tool restituiscono.
 - Se un tool restituisce un errore, segnalalo nella risposta finale.
-- Il titolo del report deve includere il tipo di analisi e la data odierna.
 PROMPT;
+
+    /**
+     * Maximum number of attempts before propagating RateLimitExceededException
+     * to the controller. Each retry waits RETRY_DELAY_SECONDS × attempt number.
+     */
+    private const MAX_ATTEMPTS = 3;
+
+    /**
+     * Base wait in seconds between retries (attempt 1 → 30 s, attempt 2 → 60 s).
+     */
+    private const RETRY_DELAY_SECONDS = 30;
 
     private readonly string $systemPrompt;
 
     /**
-     * @param AgentInterface $report     Symfony AI agent wired to the Anthropic Claude model
-     *                                   with all four report tools in its toolbox.
-     * @param string         $projectDir Kernel project directory used to load doc/db.md.
+     * @param AgentInterface $report     Symfony AI agent with ExecuteSqlTool,
+     *                                   CalculateStatisticsTool and SaveReportTool.
+     * @param string         $projectDir Kernel project directory used to load doc/db_compact.md.
      */
     public function __construct(
         private readonly AgentInterface $report,
@@ -114,29 +112,10 @@ PROMPT;
     }
 
     /**
-     * Maximum number of attempts before propagating RateLimitExceededException
-     * to the controller. Each retry waits RETRY_DELAY_SECONDS × attempt number.
-     */
-    private const MAX_ATTEMPTS = 3;
-
-    /**
-     * Base wait in seconds between retries (attempt 1 → 30 s, attempt 2 → 60 s).
-     * Anthropic free-tier quotas typically recover within 30-60 seconds.
-     */
-    private const RETRY_DELAY_SECONDS = 30;
-
-    /**
      * Submits the user's report request to the agent and returns its final summary.
      *
-     * The agent autonomously executes the four-phase pipeline (context → retrieval →
-     * computation → output) before producing the summary. The full report is written
-     * to disk by `SaveReportTool`; retrieve the download token from that service
-     * after this method returns.
-     *
      * On RateLimitExceededException the call is retried up to MAX_ATTEMPTS times
-     * with linear back-off. The outer agent loop makes 3-5 API calls per report
-     * (one per round of tool results); this retry absorbs transient quota bursts
-     * without surfacing an error to the user.
+     * with linear back-off before propagating the exception to the controller.
      *
      * @param string $prompt The user's natural-language report request in Italian.
      *
@@ -171,29 +150,29 @@ PROMPT;
     }
 
     /**
-     * Builds the system prompt by loading the database schema from doc/db.md
-     * and injecting it into the template.
+     * Builds the system prompt by injecting the current date and the compact
+     * database schema into the template.
      *
-     * Having the full schema in the prompt allows the agent to write SQL directly
-     * via `execute_sql` without triggering a second AI call for translation,
-     * eliminating the rate-limit risk of the double-AI pattern used by Advisor.
+     * The date is resolved in PHP so the agent does not need a `get_current_date`
+     * tool call, saving one API round-trip per report generation.
      *
      * @param string $projectDir Absolute path to the Symfony project root.
      *
      * @return string The fully assembled system prompt string.
      *
-     * @throws \RuntimeException If doc/db.md cannot be read.
+     * @throws \RuntimeException If doc/db_compact.md cannot be read.
      */
     private function buildSystemPrompt(string $projectDir): string
     {
         $schemaPath = $projectDir . '/doc/db_compact.md';
 
         if (!is_readable($schemaPath)) {
-            throw new \RuntimeException('Database schema file (doc/db.md) not found or not readable.');
+            throw new \RuntimeException('Compact schema file (doc/db_compact.md) not found or not readable.');
         }
 
         $schema = (string) file_get_contents($schemaPath);
+        $date   = (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Rome')))->format('d/m/Y');
 
-        return str_replace('{SCHEMA}', $schema, self::SYSTEM_PROMPT_TEMPLATE);
+        return str_replace(['{DATE}', '{SCHEMA}'], [$date, $schema], self::SYSTEM_PROMPT_TEMPLATE);
     }
 }
