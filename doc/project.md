@@ -23,7 +23,7 @@
 
 ## Funzionalità
 
-Il progetto espone quattro funzioni AI indipendenti, accessibili dalla home page (`/`).
+Il progetto espone cinque funzioni AI indipendenti, accessibili dalla home page (`/`).
 
 ### 1. Doc Chat (`/doc-chat`)
 
@@ -105,12 +105,12 @@ Permette di interrogare il database in linguaggio naturale. L'utente descrive co
 
 ### 4. Advisor AI (`/advisor`)
 
-Un agente AI multi-step autonomo specializzato nell'analisi dei dati della piattaforma corsi. L'utente pone una domanda complessa; l'agente interroga autonomamente il database più volte (tramite tool calls) e sintetizza una risposta ragionata in linguaggio naturale.
+Un agente AI multi-step autonomo specializzato nell'analisi dei dati della piattaforma corsi. L'utente pone una domanda complessa; l'agente scrive autonomamente query SQL, interroga il database più volte tramite il tool `execute_sql` e sintetizza una risposta ragionata in linguaggio naturale.
 
 **Flusso d'uso:**
-1. L'utente scrive una domanda analitica (es. "Quali sono i corsi con il tasso di completamento più alto tra gli utenti registrati nell'ultimo trimestre?").
-2. L'agente decide autonomamente quali query eseguire.
-3. Il tool `query_database` viene invocato più volte se necessario.
+1. L'utente scrive una domanda analitica (es. "Quali sono i corsi con il tasso di completamento più alto?").
+2. L'agente decide autonomamente quali query SQL eseguire (schema nel system prompt).
+3. Il tool `execute_sql` viene invocato più volte se necessario.
 4. L'agente sintetizza i risultati e risponde in italiano.
 
 **Differenze rispetto a SQL Assistant:**
@@ -130,6 +130,40 @@ Un agente AI multi-step autonomo specializzato nell'analisi dei dati della piatt
 
 ---
 
+### 5. Report Analitico (`/report`)
+
+Genera report completi scaricabili in formato Markdown, orchestrando tre tool in sequenza. La data corrente è iniettata direttamente nel system prompt da PHP. L'agente interroga il database, calcola statistiche precise e salva il report su disco; il browser riceve un link per il download.
+
+**Pipeline: retrieval → computation → output**
+
+| Fase | Tool | Categoria | Scopo |
+|------|------|-----------|-------|
+| 1 | `execute_sql` | Retrieval | Esegue query SQL (max 3) scritte dall'agente |
+| 2 | `calculate_statistics` | Computation | Calcola avg/median/min/max/stddev con precisione PHP |
+| 3 | `save_report` | Output | Salva il Markdown in `var/reports/`, restituisce token download |
+
+**Perché `calculate_statistics` come tool separato:** l'LLM è un generatore di testo probabilistico, non un calcolatore. Statistiche floating-point su dataset reali richiedono un tool dedicato per risultati precisi e riproducibili.
+
+**Flusso d'uso:**
+1. L'utente descrive il report desiderato.
+2. L'agente esegue le query necessarie (max 3).
+3. Calcola le statistiche sui dati numerici.
+4. Salva il report Markdown e restituisce una sintesi + link download.
+
+**Limiti:**
+- Prompt: max 1000 caratteri.
+- Query SQL: max 3 per report.
+
+**Route:**
+
+| Metodo | URL | Nome | Scopo |
+|--------|-----|------|-------|
+| GET | `/report` | `report` | Form prompt |
+| POST | `/report/generate` | `report_generate` | Esegue pipeline e restituisce sintesi + token (JSON) |
+| GET | `/report/download/{token}` | `report_download` | Scarica il file Markdown generato |
+
+---
+
 ## Architettura
 
 ### Struttura del progetto
@@ -143,7 +177,8 @@ src/
 │   ├── DocChatController.php
 │   ├── FileParserController.php
 │   ├── SqlController.php
-│   └── AdvisorController.php
+│   ├── AdvisorController.php
+│   └── ReportController.php
 ├── Service/
 │   ├── DocChat/
 │   │   ├── ChatService.php
@@ -152,10 +187,15 @@ src/
 │   │   └── FileParserService.php
 │   ├── Sql/
 │   │   └── SqlService.php
-│   └── Advisor/
-│       └── AdvisorService.php
+│   ├── Advisor/
+│   │   └── AdvisorService.php
+│   └── Report/
+│       └── ReportService.php
 ├── Tool/
-│   └── DatabaseQueryTool.php
+│   ├── ExecuteSqlTool.php
+│   ├── CalculateStatisticsTool.php
+│   ├── SaveReportTool.php
+│   └── DatabaseQueryTool.php      ← non usato da nessun agente, conservato per riferimento
 └── EventSubscriber/
     ├── AiExceptionSubscriber.php
     └── SecurityHeadersSubscriber.php
@@ -165,19 +205,22 @@ templates/
 ├── file_parser/
 ├── sql/
 ├── advisor/
+├── report/
 └── email/
+doc/
+├── db.md           ← schema completo (usato da SqlService)
+└── db_compact.md   ← schema compatto ~210 token (usato da Advisor e Report)
 ```
 
 ### Agenti AI configurati
 
-Sono configurati due agenti distinti in `config/packages/ai.yaml`:
+Sono configurati tre agenti in `config/packages/ai.yaml`:
 
-| Agente | Servizio/i | Tool | Note |
-|--------|-----------|------|------|
-| `default` | DocChat, FileParser, Sql | Nessuno | Agente base |
-| `advisor` | Advisor | `DatabaseQueryTool` | Autonomo, multi-step |
-
-**`default`** è iniettato come `AgentInterface` standard. **`advisor`** ha il tool `query_database` registrato, che gli permette di interrogare il database in autonomia.
+| Agente | Servizio | Tool | Note |
+|--------|----------|------|------|
+| `default` | DocChat, FileParser, Sql | Nessuno | Agente base, singola chiamata |
+| `advisor` | AdvisorService | `ExecuteSqlTool` | Multi-step, domande analitiche |
+| `report` | ReportService | `ExecuteSqlTool`, `CalculateStatisticsTool`, `SaveReportTool` | Multi-step, genera file scaricabile |
 
 ```yaml
 # config/packages/ai.yaml
@@ -196,12 +239,43 @@ ai:
         options:
           max_tokens: 8096
       tools:
-        - App\Tool\DatabaseQueryTool
+        - App\Tool\ExecuteSqlTool
+    report:
+      platform: 'ai.platform.anthropic'
+      model:
+        name: Claude::SONNET_4
+        options:
+          max_tokens: 8096
+      tools:
+        - App\Tool\ExecuteSqlTool
+        - App\Tool\CalculateStatisticsTool
+        - App\Tool\SaveReportTool
 ```
 
-### Tool: DatabaseQueryTool
+### Tool disponibili
 
-Il tool `query_database` è registrato solo nell'agente `advisor`. Riceve una domanda in linguaggio naturale, la passa a `SqlService` (che genera ed esegue la query), e restituisce un testo formattato con i risultati tabulari (max 100 righe). In caso di errore, restituisce un messaggio di errore invece di sollevare un'eccezione, così l'agente può gestire il fallimento in modo autonomo.
+#### ExecuteSqlTool
+Esegue una query SQL SELECT passata direttamente dall'agente via DBAL. L'agente conosce lo schema perché è iniettato nel system prompt (`doc/db_compact.md`). Nessuna chiamata AI interna — eliminato il pattern double-AI che causava rate limit. Usato da Advisor e Report.
+
+#### CalculateStatisticsTool
+Calcola statistiche descrittive precise (media, mediana, min, max, deviazione standard) su un array JSON di numeri. Necessario perché l'LLM non è un calcolatore affidabile: le operazioni floating-point su dataset reali richiedono un tool dedicato. Usato solo dal Report.
+
+#### SaveReportTool
+Salva il report Markdown in `var/reports/{token}.md` e memorizza il token nell'istanza (shared service). Il controller legge il token dopo la chiamata all'agente e lo include nella risposta JSON per il download. Usato solo dal Report.
+
+#### DatabaseQueryTool _(non attivo)_
+Traduce una domanda in linguaggio naturale in SQL tramite una seconda chiamata AI interna (SqlService). Non è più registrato su nessun agente perché il pattern double-AI esauriva il rate limit Anthropic. Conservato per documentazione.
+
+### Schema database e rate limit
+
+Il free tier Anthropic (5 req/min, 10K token/min) impone vincoli stringenti. Ogni round dell'agentic loop re-invia il system prompt, quindi la sua dimensione determina quanti round sono possibili prima di esaurire la quota.
+
+| File schema | Token (~) | Usato da |
+|-------------|-----------|----------|
+| `doc/db.md` | ~2600 | SqlService (chiamata singola, no loop) |
+| `doc/db_compact.md` | ~210 | AdvisorService, ReportService (agentic loop) |
+
+Advisor e Report usano `db_compact.md` per ridurre il token budget per round. Il Report limita inoltre `execute_sql` a max 3 chiamate nel system prompt. Entrambi i servizi hanno retry con back-off lineare (30 s × tentativo) su `RateLimitExceededException`.
 
 ---
 
@@ -211,17 +285,16 @@ Il tool `query_database` è registrato solo nell'agente `advisor`. Riceve una do
 
 **File:** `src/Service/DocChat/ChatService.php`
 
-Gestisce le richieste AI per la chat documentazione. Il prompt di sistema configura l'AI come assistente di supporto in italiano. Il sistema rileva quando l'utente ha bisogno di supporto umano tramite il tag `[SUPPORTO_EMAIL]` nella risposta: se presente, il tag viene rimosso dalla risposta visibile e viene impostato il flag `offer_email: true` per mostrare il form di escalation.
+Gestisce le richieste AI per la chat documentazione. Rileva quando l'utente ha bisogno di supporto umano tramite il tag `[SUPPORTO_EMAIL]` nella risposta.
 
 **Metodo principale:** `ask(string $docContext, string $question): array`
-- Input: contenuto del documento e domanda dell'utente
 - Output: `{reply: string, offer_email: bool}`
 
 ### SupportEmailService
 
 **File:** `src/Service/DocChat/SupportEmailService.php`
 
-Assembla e invia l'email di escalation. Sanitizza la cronologia chat (max 100 messaggi, max 2000 caratteri ciascuno), costruisce un transcript in testo semplice, renderizza il template HTML e allega il transcript come file `.txt`.
+Assembla e invia l'email di escalation. Sanitizza la cronologia chat (max 100 messaggi, max 2000 caratteri ciascuno), renderizza il template HTML e allega il transcript come `.txt`.
 
 **Metodo principale:** `send(string $name, string $userEmail, string $projectName, array $rawHistory): void`
 
@@ -229,7 +302,7 @@ Assembla e invia l'email di escalation. Sanitizza la cronologia chat (max 100 me
 
 **File:** `src/Service/FileParser/FileParserService.php`
 
-Estrae dati da PDF tramite AI. Il prompt utente viene sanitizzato (rimozione di null bytes e caratteri di controllo) e delimitato con tag `[USER_INSTRUCTION_START]` per prevenire prompt injection. L'output AI viene normalizzato: vengono rimossi i markdown fences, estratto il blocco JSON e rimossi eventuali trailing commas. Se l'output non è JSON valido viene sollevata una `RuntimeException`.
+Estrae dati da PDF tramite AI. Il prompt utente viene sanitizzato e delimitato con tag `[USER_INSTRUCTION_START]` per prevenire prompt injection. L'output AI viene normalizzato a JSON valido.
 
 **Metodo principale:** `extract(string $filePath, string $prompt): array`
 
@@ -237,17 +310,25 @@ Estrae dati da PDF tramite AI. Il prompt utente viene sanitizzato (rimozione di 
 
 **File:** `src/Service/Sql/SqlService.php`
 
-Genera ed esegue query SQL. Carica lo schema dal file `doc/db.md` e lo inietta nel prompt di sistema. Prima dell'esecuzione valida che la query generata sia un SELECT (regex `^\s*SELECT\b`). Restituisce un array strutturato con `{sql, columns, rows, total}`.
+Genera ed esegue query SQL. Carica lo schema completo da `doc/db.md`, lo inietta nel system prompt e valida che la query generata sia un SELECT prima dell'esecuzione.
 
-**Metodo principale:** `query(string $prompt): array`
+**Metodo principale:** `query(string $prompt): array{sql, columns, rows, total}`
 
 ### AdvisorService
 
 **File:** `src/Service/Advisor/AdvisorService.php`
 
-Delega completamente all'agente `advisor` configurato con il tool `DatabaseQueryTool`. Il prompt di sistema specifica che l'agente deve usare il tool più volte se necessario, analizzare i risultati e non inventare dati.
+Inietta lo schema compatto (`doc/db_compact.md`) nel system prompt e delega all'agente `advisor` con `ExecuteSqlTool`. Retry con back-off su rate limit.
 
 **Metodo principale:** `ask(string $question): string`
+
+### ReportService
+
+**File:** `src/Service/Report/ReportService.php`
+
+Inietta data corrente e schema compatto nel system prompt, poi delega all'agente `report` con tre tool. La data è risolta in PHP (`buildSystemPrompt`) per eliminare il tool `get_current_date` e risparmiare un round API. Retry con back-off su rate limit.
+
+**Metodo principale:** `generate(string $prompt): string`
 
 ---
 
@@ -263,12 +344,11 @@ Delega completamente all'agente `advisor` configurato con il tool `DatabaseQuery
 | Prompt | Sanitizzazione null bytes e caratteri di controllo |
 | Prompt injection | Delimitatori `[USER_INSTRUCTION_START]` in FileParser |
 | Email | Sanitizzazione cronologia (allowlist ruoli, cap per messaggio) |
+| Download | Token validato con regex allowlist, file serviti fuori da `public/` |
 | Risposta HTTP | Security headers su ogni risposta |
-| Rate limit | Gestione `RateLimitExceededException` → HTTP 429 |
+| Rate limit | Retry con back-off + `RateLimitExceededException` → HTTP 429 |
 
 ### Security Headers (SecurityHeadersSubscriber)
-
-Applicati a tutte le risposte (solo main request):
 
 - `X-Frame-Options: DENY`
 - `X-Content-Type-Options: nosniff`
@@ -290,24 +370,15 @@ Applicati a tutte le risposte (solo main request):
 | `SUPPORT_EMAIL` | Destinatario email escalation | `support@example.com` |
 | `FROM_EMAIL` | Mittente email in uscita | `noreply@example.com` |
 | `MAILER_DSN` | Trasporto mailer | `null://null` in dev |
-| `DATABASE_URL` | DSN PostgreSQL/MySQL | `mysql://app:app@127.0.0.1:3306/symfony_ai` |
+| `DATABASE_URL` | DSN MySQL | `mysql://app:app@127.0.0.1:3306/symfony_ai` |
 
 ### Comandi principali
 
 ```bash
-# Installazione dipendenze
 composer install
-
-# Pulizia cache
 php bin/console cache:clear
-
-# Esecuzione test
 php bin/phpunit
-
-# Caricamento fixtures (database dev)
 php bin/console doctrine:fixtures:load
-
-# Avvio ambiente Docker
 ./cmd/start.sh
 ```
 
@@ -315,27 +386,21 @@ php bin/console doctrine:fixtures:load
 
 ## Database
 
-Il progetto usa MySQL 8 tramite Doctrine DBAL. Lo schema completo è documentato in `doc/db.md` ed è usato come contesto nei prompt di sistema per SQL Assistant e Advisor AI.
-
-Le fixtures (FakerPHP) generano oltre 100 record di dati realistici per testare le funzionalità di interrogazione. Prima di caricare le fixtures, verificare sempre che `DATABASE_URL` non punti a un database `_staging` o `_prod`.
+MySQL 8 via Doctrine DBAL. Lo schema completo è in `doc/db.md`; la versione compatta per i system prompt degli agenti è in `doc/db_compact.md`. Le fixtures (FakerPHP) generano oltre 100 record di dati realistici.
 
 ---
 
 ## Traduzioni
 
-Tutte le stringhe visibili all'utente sono tradotte. Il file di traduzione attivo è:
-
-- `translations/messages.it.yaml` — Italiano (locale predefinita)
-
-Le chiavi sono organizzate per feature con dot-notation (es. `doc_chat.error.invalid_file`, `advisor.ask`, `sql.results.title`). Le eccezioni PHP e i messaggi di log non richiedono traduzione.
+File attivo: `translations/messages.it.yaml` — Italiano (locale predefinita). Chiavi in dot-notation per feature (es. `report.generate`, `advisor.ask`).
 
 ---
 
 ## Come aggiungere una nuova funzione
 
-1. Creare `src/Controller/<NomeFunzione>Controller.php` con le route necessarie.
-2. Creare `src/Service/<NomeFunzione>/<NomeFunzione>Service.php` con la logica AI.
+1. Creare `src/Controller/<NomeFunzione>Controller.php`.
+2. Creare `src/Service/<NomeFunzione>/<NomeFunzione>Service.php`.
 3. Creare `templates/<nome_funzione>/index.html.twig`.
-4. Aggiungere le chiavi di traduzione in `translations/messages.it.yaml`.
-5. Aggiungere la card nella home page (`templates/home/index.html.twig`).
-6. Se serve un agente con tool dedicati, aggiungere la configurazione in `config/packages/ai.yaml`.
+4. Aggiungere le chiavi in `translations/messages.it.yaml`.
+5. Aggiungere la card in `templates/home/index.html.twig`.
+6. Se serve un agente con tool: configurare in `config/packages/ai.yaml` e aggiungere `autoconfigure: false` in `config/services.yaml` per ogni nuovo tool.
