@@ -3,6 +3,7 @@
 namespace App\Service\Advisor;
 
 use Symfony\AI\Agent\AgentInterface;
+use Symfony\AI\Platform\Exception\RateLimitExceededException;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\SystemMessage;
@@ -75,15 +76,21 @@ PROMPT;
         $this->systemPrompt = $this->buildSystemPrompt($projectDir);
     }
 
+    private const MAX_ATTEMPTS        = 3;
+    private const RETRY_DELAY_SECONDS = 30;
+
     /**
      * Sends the user's question to the advisor agent and returns its final answer.
      *
-     * The agent may call `execute_sql` multiple times internally before
-     * producing the response — the caller receives only the final synthesis.
+     * The agent may call `execute_sql` multiple times internally before producing
+     * the response. On RateLimitExceededException the call is retried up to
+     * MAX_ATTEMPTS times with linear back-off before propagating the exception.
      *
      * @param string $question The user's natural-language question in Italian or English.
      *
      * @return string The agent's final natural-language answer in Italian.
+     *
+     * @throws RateLimitExceededException If all retry attempts are exhausted.
      */
     public function ask(string $question): string
     {
@@ -92,9 +99,23 @@ PROMPT;
             new UserMessage(new Text($question)),
         );
 
-        $result = $this->advisor->call($messages);
+        $lastException = null;
 
-        return trim((string) $result->getContent());
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+            try {
+                $result = $this->advisor->call($messages);
+
+                return trim((string) $result->getContent());
+            } catch (RateLimitExceededException $e) {
+                $lastException = $e;
+
+                if ($attempt < self::MAX_ATTEMPTS) {
+                    sleep(self::RETRY_DELAY_SECONDS * $attempt);
+                }
+            }
+        }
+
+        throw $lastException;
     }
 
     /**
@@ -108,7 +129,7 @@ PROMPT;
      */
     private function buildSystemPrompt(string $projectDir): string
     {
-        $schemaPath = $projectDir . '/doc/db.md';
+        $schemaPath = $projectDir . '/doc/db_compact.md';
 
         if (!is_readable($schemaPath)) {
             throw new \RuntimeException('Database schema file (doc/db.md) not found or not readable.');

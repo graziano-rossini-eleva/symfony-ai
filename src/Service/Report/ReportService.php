@@ -3,6 +3,7 @@
 namespace App\Service\Report;
 
 use Symfony\AI\Agent\AgentInterface;
+use Symfony\AI\Platform\Exception\RateLimitExceededException;
 use Symfony\AI\Platform\Message\Content\Text;
 use Symfony\AI\Platform\Message\MessageBag;
 use Symfony\AI\Platform\Message\SystemMessage;
@@ -113,6 +114,18 @@ PROMPT;
     }
 
     /**
+     * Maximum number of attempts before propagating RateLimitExceededException
+     * to the controller. Each retry waits RETRY_DELAY_SECONDS × attempt number.
+     */
+    private const MAX_ATTEMPTS = 3;
+
+    /**
+     * Base wait in seconds between retries (attempt 1 → 30 s, attempt 2 → 60 s).
+     * Anthropic free-tier quotas typically recover within 30-60 seconds.
+     */
+    private const RETRY_DELAY_SECONDS = 30;
+
+    /**
      * Submits the user's report request to the agent and returns its final summary.
      *
      * The agent autonomously executes the four-phase pipeline (context → retrieval →
@@ -120,9 +133,16 @@ PROMPT;
      * to disk by `SaveReportTool`; retrieve the download token from that service
      * after this method returns.
      *
+     * On RateLimitExceededException the call is retried up to MAX_ATTEMPTS times
+     * with linear back-off. The outer agent loop makes 3-5 API calls per report
+     * (one per round of tool results); this retry absorbs transient quota bursts
+     * without surfacing an error to the user.
+     *
      * @param string $prompt The user's natural-language report request in Italian.
      *
      * @return string The agent's final 3-5 sentence summary of the generated report.
+     *
+     * @throws RateLimitExceededException If all retry attempts are exhausted.
      */
     public function generate(string $prompt): string
     {
@@ -131,9 +151,23 @@ PROMPT;
             new UserMessage(new Text($prompt)),
         );
 
-        $result = $this->report->call($messages);
+        $lastException = null;
 
-        return trim((string) $result->getContent());
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+            try {
+                $result = $this->report->call($messages);
+
+                return trim((string) $result->getContent());
+            } catch (RateLimitExceededException $e) {
+                $lastException = $e;
+
+                if ($attempt < self::MAX_ATTEMPTS) {
+                    sleep(self::RETRY_DELAY_SECONDS * $attempt);
+                }
+            }
+        }
+
+        throw $lastException;
     }
 
     /**
@@ -152,7 +186,7 @@ PROMPT;
      */
     private function buildSystemPrompt(string $projectDir): string
     {
-        $schemaPath = $projectDir . '/doc/db.md';
+        $schemaPath = $projectDir . '/doc/db_compact.md';
 
         if (!is_readable($schemaPath)) {
             throw new \RuntimeException('Database schema file (doc/db.md) not found or not readable.');
