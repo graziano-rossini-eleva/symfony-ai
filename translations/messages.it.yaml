@@ -13,6 +13,9 @@ home.feature.advisor.description: "Fai domande complesse sui dati della piattafo
 home.feature.report.title: 'Report Analitico'
 home.feature.report.description: "Genera report completi scaricabili orchestrando quattro tool in sequenza: data corrente, query DB, calcolo statistiche preciso e salvataggio file."
 home.feature.coming_soon: 'In arrivo'
+home.mcp.title: 'Integrazione Claude Desktop (MCP)'
+home.mcp.description: 'Scarica il file di configurazione pre-compilato per collegare Claude Desktop a questo server MCP. Copialo in ~/Library/Application Support/Claude/ e riavvia Claude.'
+home.mcp.button: 'Scarica claude_desktop_config.json'
 doc_chat.page_title: 'Chat Documentazione — Carica file'
 doc_chat.back: 'Torna alla home'
 doc_chat.upload.title: 'Chat Documentazione'

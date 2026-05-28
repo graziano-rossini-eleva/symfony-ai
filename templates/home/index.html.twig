@@ -109,6 +109,53 @@
     }
 
     .btn-primary:hover { opacity: .85; }
+
+    .mcp-banner {
+        margin-top: 40px;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        text-align: left;
+    }
+
+    .mcp-banner-icon { font-size: 1.6rem; flex-shrink: 0; }
+
+    .mcp-banner-body { flex: 1; }
+
+    .mcp-banner-title {
+        font-size: .95rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 4px;
+    }
+
+    .mcp-banner-desc {
+        font-size: .82rem;
+        color: #888;
+        line-height: 1.4;
+    }
+
+    .btn-secondary {
+        display: inline-block;
+        padding: 9px 18px;
+        background: transparent;
+        color: #1a1a2e;
+        border: 1.5px solid #1a1a2e;
+        border-radius: 8px;
+        font-size: .82rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background .2s, color .2s;
+        flex-shrink: 0;
+    }
+
+    .btn-secondary:hover { background: #1a1a2e; color: #fff; }
 </style>
 {% endblock %}
 
@@ -155,6 +202,15 @@
             <a class="btn-primary" href="{{ path('report') }}">{{ 'home.feature.doc_chat.button'|trans }}</a>
         </div>
 
+    </div>
+
+    <div class="mcp-banner">
+        <div class="mcp-banner-icon">🔌</div>
+        <div class="mcp-banner-body">
+            <div class="mcp-banner-title">{{ 'home.mcp.title'|trans }}</div>
+            <div class="mcp-banner-desc">{{ 'home.mcp.description'|trans }}</div>
+        </div>
+        <a class="btn-secondary" href="{{ path('mcp_config_download') }}" download>{{ 'home.mcp.button'|trans }}</a>
     </div>
 </div>
 {% endblock %}
