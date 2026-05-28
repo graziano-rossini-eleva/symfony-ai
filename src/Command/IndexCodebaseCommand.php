@@ -129,6 +129,10 @@ class IndexCodebaseCommand extends Command
             $chunks = $this->splitIntoChunks($content);
 
             foreach ($chunks as $i => $chunk) {
+                if (trim($chunk) === '') {
+                    continue;
+                }
+
                 $metadata = new Metadata();
                 $metadata->offsetSet(Metadata::KEY_SOURCE, $relativePath);
                 $metadata->setText($chunk);
