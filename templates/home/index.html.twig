@@ -110,52 +110,101 @@
 
     .btn-primary:hover { opacity: .85; }
 
-    .mcp-banner {
-        margin-top: 40px;
-        background: #fff;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 20px 24px;
+    .mcp-fab {
+        position: fixed;
+        bottom: 70px;
+        right: 28px;
+        width: 44px;
+        background: #4f46e5;
+        border-radius: 50px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,.22);
+        cursor: pointer;
+        transition: width .35s ease, border-radius .3s ease;
+        z-index: 100;
+    }
+
+    .mcp-fab-trigger {
         display: flex;
         align-items: center;
-        gap: 16px;
-        text-align: left;
-    }
-
-    .mcp-banner-icon { font-size: 1.6rem; flex-shrink: 0; }
-
-    .mcp-banner-body { flex: 1; }
-
-    .mcp-banner-title {
-        font-size: .95rem;
-        font-weight: 700;
-        color: #1a1a2e;
-        margin-bottom: 4px;
-    }
-
-    .mcp-banner-desc {
-        font-size: .82rem;
-        color: #888;
-        line-height: 1.4;
-    }
-
-    .btn-secondary {
-        display: inline-block;
-        padding: 9px 18px;
-        background: transparent;
-        color: #1a1a2e;
-        border: 1.5px solid #1a1a2e;
-        border-radius: 8px;
-        font-size: .82rem;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px;
         white-space: nowrap;
-        transition: background .2s, color .2s;
         flex-shrink: 0;
     }
 
-    .btn-secondary:hover { background: #1a1a2e; color: #fff; }
+    .mcp-fab-trigger-icon { font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
+
+    .mcp-fab-trigger-label {
+        font-size: .82rem;
+        font-weight: 700;
+        color: #fff;
+        opacity: 0;
+        transition: opacity .2s ease .1s;
+        overflow: hidden;
+    }
+
+    .mcp-fab-panel {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height .35s ease, padding .35s ease;
+        padding: 0 16px;
+    }
+
+    .mcp-fab-panel-title {
+        font-size: .92rem;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 6px;
+    }
+
+    .mcp-fab-panel-desc {
+        font-size: .78rem;
+        color: rgba(255,255,255,.6);
+        line-height: 1.5;
+        margin-bottom: 14px;
+    }
+
+    .mcp-fab:hover {
+        width: 300px;
+        border-radius: 14px;
+    }
+
+    .mcp-fab:hover .mcp-fab-trigger {
+        justify-content: flex-start;
+        padding: 10px 16px;
+    }
+
+    .mcp-fab:hover .mcp-fab-trigger-label {
+        opacity: 1;
+    }
+
+    .mcp-fab:hover .mcp-fab-panel {
+        max-height: 200px;
+        padding: 0 16px 16px;
+    }
+
+    .btn-secondary {
+        display: block;
+        padding: 9px 12px;
+        background: #fff;
+        color: #1a1a2e;
+        border: none;
+        border-radius: 8px;
+        font-size: .78rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        text-align: center;
+        white-space: nowrap;
+        transition: opacity .2s;
+    }
+
+    .btn-secondary:hover { opacity: .85; }
 </style>
 {% endblock %}
 
@@ -204,13 +253,16 @@
 
     </div>
 
-    <div class="mcp-banner">
-        <div class="mcp-banner-icon">🔌</div>
-        <div class="mcp-banner-body">
-            <div class="mcp-banner-title">{{ 'home.mcp.title'|trans }}</div>
-            <div class="mcp-banner-desc">{{ 'home.mcp.description'|trans }}</div>
+    <div class="mcp-fab">
+        <div class="mcp-fab-panel">
+            <div class="mcp-fab-panel-title">{{ 'home.mcp.title'|trans }}</div>
+            <div class="mcp-fab-panel-desc">{{ 'home.mcp.description'|trans }}</div>
+            <a class="btn-secondary" href="{{ path('mcp_config_download') }}" download>{{ 'home.mcp.button'|trans }}</a>
         </div>
-        <a class="btn-secondary" href="{{ path('mcp_config_download') }}" download>{{ 'home.mcp.button'|trans }}</a>
+        <div class="mcp-fab-trigger">
+            <span class="mcp-fab-trigger-icon">🔌</span>
+            <span class="mcp-fab-trigger-label">Claude Desktop (MCP)</span>
+        </div>
     </div>
 </div>
 {% endblock %}
