@@ -6,17 +6,19 @@ Each feature exercises a different capability of the bundle through a concrete u
 
 ## Features
 
-| Feature | Status | Description |
+| Feature | Route | Description |
 |---|---|---|
-| **Doc Chat** | Available | Upload a Markdown file and chat with an AI assistant about its content. Supports email escalation to a human support team. |
-| **File Parser** | Available | Upload a PDF and describe what to extract in plain language. The AI returns a structured JSON object. |
-| **SQL Assistant** | Available | Describe in plain language what data you want; the AI generates a safe read-only SQL SELECT and runs it against the database, showing paginated results. |
-| **Advisor AI** | Available | Ask complex questions about the platform data in natural language. A dedicated agent with multi-step tool calling autonomously runs as many SQL queries as needed and synthesises a single natural-language answer in Italian. |
+| **Doc Chat** | `/doc-chat` | Upload a Markdown file (or use the built-in project doc as fallback) and chat with an AI assistant about its content. Supports email escalation to a human support team. |
+| **File Parser** | `/file-parser` | Upload a PDF and describe what to extract in plain language. The AI returns a structured JSON object. |
+| **SQL Assistant** | `/sql` | Describe in plain language what data you want; the AI generates a safe read-only SQL SELECT and runs it against the database, showing paginated results. |
+| **Advisor AI** | `/advisor` | Ask complex questions about the platform data. A dedicated agent with multi-step tool calling autonomously runs as many SQL queries as needed and synthesises a natural-language answer. |
+| **Report Analitico** | `/report` | Generate downloadable Markdown reports through a 3-tool agentic pipeline: SQL retrieval → precise statistics computation → file output with download token. |
 
 ## Tech Stack
 
 - **PHP** 8.2+ / **Symfony** 7.4
-- **Symfony AI Bundle** (`symfony/ai-bundle`) with Anthropic platform bridge
+- **Symfony AI Bundle** (`symfony/ai-bundle ^0.8`) with Anthropic platform bridge
+- **Symfony MCP Bundle** (`symfony/mcp-bundle ^0.9`) — MCP server for Claude Desktop integration
 - **Claude Sonnet 4** as the AI model
 - **MySQL 8** via Docker
 - **Doctrine ORM** + **Doctrine Migrations** + **DoctrineFixturesBundle**
@@ -28,11 +30,12 @@ Each feature exercises a different capability of the bundle through a concrete u
 ```
 src/
 ├── Controller/
-│   ├── HomeController.php          # Feature selection landing page
+│   ├── HomeController.php          # Landing page + GET /mcp-config download
 │   ├── DocChatController.php       # Doc Chat: upload + chat + email escalation
 │   ├── FileParserController.php    # File Parser: upload + extract
 │   ├── SqlController.php           # SQL Assistant: prompt → SQL → paginated table
-│   └── AdvisorController.php       # Advisor AI: question → multi-step agent → answer
+│   ├── AdvisorController.php       # Advisor AI: question → multi-step agent → answer
+│   └── ReportController.php        # Report: prompt → 3-tool pipeline → download
 ├── Service/
 │   ├── DocChat/
 │   │   ├── ChatService.php         # AI prompt, agent call, tag detection
@@ -41,20 +44,27 @@ src/
 │   │   └── FileParserService.php   # PDF read, prompt injection mitigation, JSON normalisation
 │   ├── Sql/
 │   │   └── SqlService.php          # Schema loading, SQL generation via AI, safe DBAL execution
-│   └── Advisor/
-│       └── AdvisorService.php      # Builds MessageBag, calls advisor agent, returns answer
+│   ├── Advisor/
+│   │   └── AdvisorService.php      # Builds MessageBag, calls advisor agent, returns answer
+│   └── Report/
+│       └── ReportService.php       # Injects date + schema, calls report agent, handles retry
 ├── Tool/
-│   └── DatabaseQueryTool.php       # #[AsTool] wrapping SqlService for the advisor agent
+│   ├── ExecuteSqlTool.php          # #[AsTool] + #[McpTool] — validates and runs SQL SELECT
+│   ├── CalculateStatisticsTool.php # #[AsTool] + #[McpTool] — precise descriptive statistics
+│   ├── SaveReportTool.php          # #[AsTool] — saves Markdown to var/reports/, stores token
+│   └── DatabaseQueryTool.php       # unused — double-AI pattern, kept for reference
 ├── DataFixtures/
 │   └── AppFixtures.php             # Seed data: 100+ records per table via FakerPHP
 └── EventSubscriber/
     ├── SecurityHeadersSubscriber.php
     └── AiExceptionSubscriber.php   # Converts RateLimitExceededException to JSON 429
+config/
+├── packages/
+│   ├── ai.yaml                     # Agent definitions (default, advisor, report)
+│   └── mcp.yaml                    # MCP server config (stdio + HTTP, schema in instructions)
 doc/
-└── db.md                           # Database schema reference (used as AI context)
-docker/
-├── docker-compose.yml              # MySQL 8 service
-└── mysql/.env                      # MySQL credentials
+├── db.md                           # Full database schema (~2600 tokens, used by SqlService)
+└── db_compact.md                   # Compact schema (~210 tokens, used by Advisor + Report + MCP)
 templates/
 ├── home/index.html.twig
 ├── doc_chat/
@@ -63,6 +73,7 @@ templates/
 ├── file_parser/index.html.twig
 ├── sql/index.html.twig
 ├── advisor/index.html.twig
+├── report/index.html.twig
 └── email/support_request.html.twig
 translations/
 └── messages.it.yaml
@@ -196,21 +207,62 @@ ai:
                 name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
                 options:
                     max_tokens: 8096
-        advisor:                          # used by Advisor AI only
+        advisor:                          # used by Advisor AI — multi-step tool calling
             platform: 'ai.platform.anthropic'
             model:
                 name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
                 options:
                     max_tokens: 8096
             tools:
-                - App\Tool\DatabaseQueryTool
+                - App\Tool\ExecuteSqlTool
+        report:                           # used by Report — 3-tool orchestration pipeline
+            platform: 'ai.platform.anthropic'
+            model:
+                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+                options:
+                    max_tokens: 8096
+            tools:
+                - App\Tool\ExecuteSqlTool
+                - App\Tool\CalculateStatisticsTool
+                - App\Tool\SaveReportTool
 ```
 
-`max_tokens` is set to **8096** explicitly because the bundle default (1000) is too low for structured JSON responses over multi-page PDFs — the model output gets truncated mid-JSON. 8096 matches Claude Sonnet's output token ceiling.
+`max_tokens` is set to **8096** explicitly because the bundle default (1000) is too low for structured JSON responses over multi-page PDFs — the model output gets truncated mid-JSON.
 
-The `advisor` agent has a dedicated tool (`query_database`) that it can call autonomously, multiple times, before composing its final answer. The `default` agent has no tools so that the SQL assistant and other single-call features are not affected.
+All Tool classes have `autoconfigure: false` in `services.yaml` to prevent `#[AsTool]` from registering them globally on every agent. Each tool is wired explicitly to its agent in `ai.yaml`. `ExecuteSqlTool` and `CalculateStatisticsTool` are additionally tagged `mcp.tool` for MCP server exposure.
 
-To switch model, replace the constant with any value from `Symfony\AI\Platform\Bridge\Anthropic\Claude`.
+---
+
+## MCP Server (Claude Desktop integration)
+
+The project exposes an MCP server via `symfony/mcp-bundle`, allowing Claude Desktop (and any MCP-compatible client) to query the platform database directly.
+
+### Exposed tools
+
+| Tool | Description |
+|---|---|
+| `execute_sql` | Runs a read-only SQL SELECT on the platform database |
+| `calculate_statistics` | Computes precise descriptive statistics on a JSON array of numbers |
+
+The database schema is embedded in the MCP server `instructions` (`config/packages/mcp.yaml`), so the client never needs to query `information_schema`.
+
+### Transports
+
+| Transport | Endpoint |
+|---|---|
+| stdio | `php bin/console mcp:server` |
+| HTTP | `GET/POST /_mcp` |
+
+### Claude Desktop setup
+
+Download the pre-filled config file from the home page (`GET /mcp-config`) and copy it to:
+
+```
+~/Library/Application Support/Claude/claude_desktop_config.json   # macOS
+%APPDATA%\Claude\claude_desktop_config.json                        # Windows
+```
+
+Then restart Claude Desktop.
 
 ---
 

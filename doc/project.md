@@ -12,6 +12,7 @@
 
 - **PHP 8.2+** / **Symfony 7.4**
 - **Symfony AI Bundle** (`symfony/ai-bundle ^0.8`) con bridge Anthropic
+- **Symfony MCP Bundle** (`symfony/mcp-bundle ^0.9`) — server MCP per Claude Desktop
 - **Modello AI:** Claude Sonnet 4 (`Claude::SONNET_4`)
 - **Database:** MySQL 8 (Doctrine ORM + Migrations)
 - **UI:** Twig + Symfony UX Turbo (Hotwire) + Asset Mapper
@@ -30,14 +31,15 @@ Il progetto espone cinque funzioni AI indipendenti, accessibili dalla home page 
 Permette di caricare un file Markdown (`.md`) come documento di contesto e poi fare domande in linguaggio naturale. Il sistema risponde basandosi esclusivamente sul contenuto del documento caricato. Se l'utente ha bisogno di assistenza umana, può richiedere una escalation via email: il sistema invia automaticamente un'email di supporto con la trascrizione della conversazione allegata.
 
 **Flusso d'uso:**
-1. L'utente carica un file `.md` (max 512 KB).
-2. Il file viene salvato in sessione come contesto.
-3. L'utente pone domande nella chat.
-4. Il sistema risponde usando il documento come base di conoscenza.
-5. Se appropriato, il sistema offre l'escalation email; l'utente compila nome, email e nome progetto.
+1. L'utente carica un file `.md` (max 512 KB) — **opzionale**.
+2. Se nessun file viene caricato, il sistema usa `doc/project.md` come contesto predefinito.
+3. Il file viene salvato in sessione come contesto.
+4. L'utente pone domande nella chat.
+5. Il sistema risponde usando il documento come base di conoscenza.
+6. Se appropriato, il sistema offre l'escalation email; l'utente compila nome, email e nome progetto.
 
 **Limiti:**
-- File: solo `.md`, max 512 KB.
+- File: solo `.md`, max 512 KB (opzionale — fallback su `doc/project.md`).
 - Domande: max 2000 caratteri.
 
 **Route:**
@@ -164,6 +166,35 @@ Genera report completi scaricabili in formato Markdown, orchestrando tre tool in
 
 ---
 
+### 6. MCP Server (integrazione Claude Desktop)
+
+Il server MCP espone i tool della piattaforma a qualsiasi client compatibile con il [Model Context Protocol](https://modelcontextprotocol.io/) (Claude Desktop, Cursor, ecc.). Non è una funzione utente — è un'integrazione per sviluppatori/assistenti AI.
+
+**Tool esposti:**
+
+| Tool | Attributo | Descrizione |
+|------|-----------|-------------|
+| `execute_sql` | `#[McpTool]` su `ExecuteSqlTool` | Esegue query SQL SELECT in sola lettura sul database della piattaforma |
+| `calculate_statistics` | `#[McpTool]` su `CalculateStatisticsTool` | Calcola statistiche descrittive precise su array JSON di numeri |
+
+**Transport supportati:**
+
+| Transport | Comando / URL |
+|-----------|--------------|
+| stdio | `php bin/console mcp:server` |
+| HTTP | `GET/POST /_mcp` |
+
+**Configurazione:**
+- `config/packages/mcp.yaml` — nome server, transport, endpoint HTTP, istruzioni con schema DB iniettato
+- I tool sono taggati `mcp.tool` in `config/services.yaml` per il service locator DI
+
+**Setup Claude Desktop:**
+Dal browser aprire `GET /mcp-config` — scarica `claude_desktop_config.json` pre-compilato con il path assoluto di `bin/console`. Copiarlo in `~/Library/Application Support/Claude/` e riavviare Claude Desktop.
+
+> Lo schema del database è iniettato nelle `instructions` del server MCP (`config/packages/mcp.yaml`), quindi Claude Desktop non interroga mai `information_schema`.
+
+---
+
 ## Copertura del Symfony AI Bundle
 
 ### Componenti del bundle installati
@@ -173,12 +204,12 @@ Genera report completi scaricabili in formato Markdown, orchestrando tre tool in
 | **Platform Component** | `symfony/ai-anthropic-platform` | ✓ | Bridge Anthropic — accesso a Claude Sonnet 4 tramite interfaccia unificata |
 | **Agent Component** | `symfony/ai-agent` | ✓ | `AgentInterface`, tool calling, agentic loop multi-step |
 | **AI Bundle** | `symfony/ai-bundle` | ✓ | Integrazione Symfony: DI, autowiring agenti, `config/packages/ai.yaml` |
+| **MCP Bundle** | `symfony/mcp-bundle` | ✓ | Server MCP attivo — espone `execute_sql` e `calculate_statistics` a Claude Desktop via stdio e HTTP (`/_mcp`) |
 | **Chat Component** | `symfony/ai-chat` | — | Non installato — la cronologia chat è gestita manualmente in sessione PHP |
 | **Store Component** | `symfony/ai-store` | — | Non installato — nessun vector database né pipeline RAG |
-| **Mate Component** | `symfony/ai-mate` | — | Non installato — nessun MCP server esposto all'assistente |
-| **MCP Bundle** | `symfony/mcp-bundle` | — | Non installato — nessuna integrazione Model Context Protocol |
+| **Mate Component** | `symfony/ai-mate` | — | Non installato — `mcp-bundle` copre già l'integrazione con gli assistenti AI |
 
-> I componenti non installati rappresentano aree di espansione future: RAG con Store, cronologia persistente con Chat, o esposizione dell'app come MCP server con Mate.
+> Espansioni future possibili: RAG con Store Component, cronologia persistente con Chat Component.
 
 ---
 
@@ -225,8 +256,8 @@ Il progetto segue un'organizzazione a **vertical slices**: ogni funzione è auto
 ```
 src/
 ├── Controller/
-│   ├── HomeController.php
-│   ├── DocChatController.php
+│   ├── HomeController.php          # Landing page + GET /mcp-config download
+│   ├── DocChatController.php       # Upload opzionale + chat + escalation email
 │   ├── FileParserController.php
 │   ├── SqlController.php
 │   ├── AdvisorController.php
@@ -244,13 +275,19 @@ src/
 │   └── Report/
 │       └── ReportService.php
 ├── Tool/
-│   ├── ExecuteSqlTool.php
-│   ├── CalculateStatisticsTool.php
-│   ├── SaveReportTool.php
-│   └── DatabaseQueryTool.php      ← non usato da nessun agente, conservato per riferimento
+│   ├── ExecuteSqlTool.php          # #[AsTool] + #[McpTool] — advisor, report, MCP
+│   ├── CalculateStatisticsTool.php # #[AsTool] + #[McpTool] — report, MCP
+│   ├── SaveReportTool.php          # #[AsTool] — solo report
+│   └── DatabaseQueryTool.php       # non attivo — conservato per riferimento
 └── EventSubscriber/
     ├── AiExceptionSubscriber.php
     └── SecurityHeadersSubscriber.php
+config/
+├── packages/
+│   ├── ai.yaml                     # Agenti AI (default, advisor, report)
+│   └── mcp.yaml                    # Server MCP (stdio + HTTP, schema DB nelle instructions)
+├── routes/
+│   └── mcp.yaml                    # Route loader MCP (endpoint /_mcp)
 templates/
 ├── home/
 ├── doc_chat/
@@ -260,8 +297,8 @@ templates/
 ├── report/
 └── email/
 doc/
-├── db.md           ← schema completo (usato da SqlService)
-└── db_compact.md   ← schema compatto ~210 token (usato da Advisor e Report)
+├── db.md           ← schema completo ~2600 token (usato da SqlService)
+└── db_compact.md   ← schema compatto ~210 token (usato da Advisor, Report e MCP instructions)
 ```
 
 ### Agenti AI configurati
