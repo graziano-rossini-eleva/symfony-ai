@@ -2,6 +2,7 @@
 
 namespace App\Tool;
 
+use Mcp\Capability\Attribute\McpTool;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 
 /**
@@ -45,6 +46,10 @@ use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
         Parametro "valuesJson": stringa JSON contenente un array di numeri,
         es. "[4.5, 3.8, 5.0, 4.2, 3.1]"
         DESC
+)]
+#[McpTool(
+    name: 'calculate_statistics',
+    description: 'Calculates precise descriptive statistics (count, mean, median, min, max, std dev, sum) on a JSON-encoded array of numeric values.',
 )]
 class CalculateStatisticsTool
 {

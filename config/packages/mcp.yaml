@@ -1,0 +1,16 @@
+mcp:
+    app: 'SymfonyAI'
+    version: '1.0.0'
+    description: 'MCP server for the SymfonyAI sandbox — exposes platform data tools to AI assistants.'
+    instructions: |
+        You are connected to the SymfonyAI platform. Available tools let you query the
+        course platform database (read-only SELECT only) and calculate precise statistics
+        on numeric datasets. Always prefer calculate_statistics over computing averages
+        yourself. Respond in Italian unless asked otherwise.
+    client_transports:
+        stdio: true
+        http: true
+    http:
+        path: /_mcp
+        session:
+            store: file

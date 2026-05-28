@@ -36,9 +36,11 @@ services:
 
     App\Tool\CalculateStatisticsTool:
         autoconfigure: false
+        tags: ['mcp.tool']
 
     App\Tool\ExecuteSqlTool:
         autoconfigure: false
+        tags: ['mcp.tool']
 
     App\Tool\SaveReportTool:
         autoconfigure: false

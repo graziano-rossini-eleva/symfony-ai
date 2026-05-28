@@ -3,6 +3,7 @@
 namespace App\Tool;
 
 use Doctrine\DBAL\Connection;
+use Mcp\Capability\Attribute\McpTool;
 use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 
 /**
@@ -38,6 +39,10 @@ use Symfony\AI\Agent\Toolbox\Attribute\AsTool;
 
         Parametro "sql": la query SQL SELECT completa e corretta da eseguire.
         DESC
+)]
+#[McpTool(
+    name: 'execute_sql',
+    description: 'Executes a read-only SQL SELECT query on the platform database and returns the formatted results. Only SELECT statements are allowed.',
 )]
 class ExecuteSqlTool
 {
