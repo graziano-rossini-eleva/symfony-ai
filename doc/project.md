@@ -164,6 +164,58 @@ Genera report completi scaricabili in formato Markdown, orchestrando tre tool in
 
 ---
 
+## Copertura del Symfony AI Bundle
+
+### Componenti del bundle installati
+
+| Componente | Pacchetto | Usato in questo progetto | Note |
+|-----------|-----------|:------------------------:|------|
+| **Platform Component** | `symfony/ai-anthropic-platform` | ✓ | Bridge Anthropic — accesso a Claude Sonnet 4 tramite interfaccia unificata |
+| **Agent Component** | `symfony/ai-agent` | ✓ | `AgentInterface`, tool calling, agentic loop multi-step |
+| **AI Bundle** | `symfony/ai-bundle` | ✓ | Integrazione Symfony: DI, autowiring agenti, `config/packages/ai.yaml` |
+| **Chat Component** | `symfony/ai-chat` | — | Non installato — la cronologia chat è gestita manualmente in sessione PHP |
+| **Store Component** | `symfony/ai-store` | — | Non installato — nessun vector database né pipeline RAG |
+| **Mate Component** | `symfony/ai-mate` | — | Non installato — nessun MCP server esposto all'assistente |
+| **MCP Bundle** | `symfony/mcp-bundle` | — | Non installato — nessuna integrazione Model Context Protocol |
+
+> I componenti non installati rappresentano aree di espansione future: RAG con Store, cronologia persistente con Chat, o esposizione dell'app come MCP server con Mate.
+
+---
+
+### Funzionalità coperte per feature
+
+La tabella mostra quali macro-funzionalità del bundle sono esercitate da ciascuna feature del progetto.
+
+| Funzionalità del bundle | Doc Chat | File Parser | SQL Assistant | Advisor | Report |
+|-------------------------|:--------:|:-----------:|:-------------:|:-------:|:------:|
+| `AgentInterface` — chiamata singola | ✓ | ✓ | ✓ | ✓ | ✓ |
+| System prompt (`SystemMessage`) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Contenuto documento (`Document`) — input binario multimodale | | ✓ | | | |
+| Output strutturato — estrazione JSON da testo libero | | ✓ | | | |
+| Agentic loop con tool calling | | | | ✓ | ✓ |
+| Tool personalizzato (`AsTool` / `ToolInterface`) | | | | ✓ | ✓ |
+| Tool di retrieval (`ExecuteSqlTool`) | | | | ✓ | ✓ |
+| Tool di computation (`CalculateStatisticsTool`) | | | | | ✓ |
+| Tool di output / stato persistente (`SaveReportTool`) | | | | | ✓ |
+| Configurazione multi-agente (`config/packages/ai.yaml`) | `default` | `default` | `default` | `advisor` | `report` |
+| Retry con back-off su `RateLimitExceededException` | | | | ✓ | ✓ |
+| Schema DB iniettato nel system prompt | | | ✓ | ✓ | ✓ |
+| Iniezione data corrente nel system prompt (elimina tool round-trip) | | | | | ✓ |
+| Sanitizzazione prompt / delimitatori anti-injection | | ✓ | | | |
+| Escalation email con trascrizione AI | ✓ | | | | |
+| Download file via token casuale (out-of-webroot) | | | | | ✓ |
+
+### Pattern AI per livello di complessità
+
+| Livello | Pattern | Feature |
+|---------|---------|---------|
+| **Base** | Agente a singola chiamata, nessun tool | Doc Chat, SQL Assistant |
+| **Intermedio** | Agente a singola chiamata + input multimodale + normalizzazione output | File Parser |
+| **Avanzato** | Agentic loop, 1 tool, schema nel system prompt, retry | Advisor |
+| **Esperto** | Agentic loop, 3 tool con responsabilità distinte (retrieval / computation / output), stato persistente nel tool, pipeline sequenziale | Report |
+
+---
+
 ## Architettura
 
 ### Struttura del progetto

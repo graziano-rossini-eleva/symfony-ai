@@ -6,6 +6,7 @@ use App\Service\DocChat\ChatService;
 use App\Service\DocChat\SupportEmailService;
 use Symfony\AI\Platform\Exception\RateLimitExceededException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -30,15 +31,20 @@ class DocChatController extends AbstractController
     /** Maximum raw request-body size accepted for the send-email endpoint (512 KB). */
     private const MAX_EMAIL_BODY_BYTES = 524288;
 
+    /** Relative path to the fallback documentation file used when no upload is provided. */
+    private const DEFAULT_DOC_PATH = 'doc/project.md';
+
     /**
      * @param ChatService         $chatService         AI service that processes user questions.
      * @param SupportEmailService $supportEmailService Mail service that dispatches support-request emails.
      * @param TranslatorInterface $translator          Translator used for user-facing error strings.
+     * @param string              $projectDir          Kernel project directory, used to resolve the fallback doc path.
      */
     public function __construct(
         private readonly ChatService $chatService,
         private readonly SupportEmailService $supportEmailService,
         private readonly TranslatorInterface $translator,
+        #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {
     }
 
@@ -67,7 +73,24 @@ class DocChatController extends AbstractController
 
         $file = $request->files->get('doc_file');
 
-        if (!$file || strtolower($file->getClientOriginalExtension()) !== 'md') {
+        if (!$file) {
+            // No file uploaded: fall back to the project's own documentation.
+            $fallbackPath = $this->projectDir . '/' . self::DEFAULT_DOC_PATH;
+            $content = @file_get_contents($fallbackPath);
+            if ($content === false || trim($content) === '') {
+                $this->addFlash('error', $this->translator->trans('doc_chat.error.empty_file'));
+                return $this->redirectToRoute('doc_chat');
+            }
+            $safeName = 'SymfonyAI — Documentazione di progetto';
+
+            $session = $request->getSession();
+            $session->set('doc_context', $content);
+            $session->set('doc_name', $safeName);
+
+            return $this->redirectToRoute('doc_chat_chat');
+        }
+
+        if (strtolower($file->getClientOriginalExtension()) !== 'md') {
             $this->addFlash('error', $this->translator->trans('doc_chat.error.invalid_file'));
             return $this->redirectToRoute('doc_chat');
         }

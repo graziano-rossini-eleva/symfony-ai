@@ -113,7 +113,8 @@
     <form class="upload-card" action="{{ path('doc_chat_upload') }}" method="post" enctype="multipart/form-data">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('upload') }}" />
         <label class="upload-label" for="doc_file">{{ 'doc_chat.upload.label'|trans }}</label>
-        <input class="upload-input" type="file" id="doc_file" name="doc_file" accept=".md" required />
+        <input class="upload-input" type="file" id="doc_file" name="doc_file" accept=".md" />
+        <p style="font-size:.82rem;color:#888;text-align:left;margin-top:-4px;">{{ 'doc_chat.upload.hint'|trans }}</p>
         <button class="btn-primary" type="submit">{{ 'doc_chat.upload.button'|trans }}</button>
     </form>
 </div>
