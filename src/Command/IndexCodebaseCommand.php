@@ -16,8 +16,13 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Finder\Finder;
 
 /**
- * Scans the project source files, splits them into overlapping chunks, and
- * stores each chunk as a vector document in the SQLite code store.
+ * Scans a curated subset of the project files, splits them into overlapping
+ * chunks, and stores each chunk as a vector document in the SQLite code store.
+ *
+ * Only the directories listed in SCAN_DIRS (src/, doc/, templates/, translations/)
+ * and the files listed in EXTRA_FILES (README.md) are indexed. Generated,
+ * vendor and configuration files are intentionally excluded to keep the index
+ * focused and reduce noise in RAG results.
  *
  * The resulting index powers the RAG pipeline used by Code Chat. Run this
  * command once after setup, and again with --truncate whenever the codebase
@@ -49,8 +54,15 @@ class IndexCodebaseCommand extends Command
     /** File extensions included in the index. */
     private const EXTENSIONS = ['php', 'twig', 'yaml', 'yml', 'md'];
 
-    /** Top-level directories excluded from the scan. */
-    private const EXCLUDE_DIRS = ['vendor', 'var', 'node_modules', '.git', 'public'];
+    /**
+     * Directories scanned relative to the project root.
+     * Keeping the scope narrow reduces indexing time and avoids polluting the
+     * context with generated or third-party files.
+     */
+    private const SCAN_DIRS = ['src', 'doc', 'templates', 'translations'];
+
+    /** Individual files outside SCAN_DIRS that are always included. */
+    private const EXTRA_FILES = ['README.md'];
 
     /**
      * @param IndexerInterface      $indexer    Document indexer wired to the `code` vectorizer and SQLite store.
@@ -98,18 +110,30 @@ class IndexCodebaseCommand extends Command
             $io->comment('Store cleared.');
         }
 
+        $scanDirs = array_filter(
+            array_map(fn ($dir) => $this->projectDir.'/'.$dir, self::SCAN_DIRS),
+            'is_dir'
+        );
+
         $finder = (new Finder())
             ->files()
-            ->in($this->projectDir)
-            ->exclude(self::EXCLUDE_DIRS)
+            ->in($scanDirs)
             ->name(array_map(fn ($ext) => '*.'.$ext, self::EXTENSIONS))
             ->sortByName();
 
-        $io->comment(sprintf('Found %d files to process.', $finder->count()));
+        $extraFiles = array_filter(
+            array_map(fn ($f) => $this->projectDir.'/'.$f, self::EXTRA_FILES),
+            'is_file'
+        );
+
+        $io->comment(sprintf('Found %d files to process.', $finder->count() + count($extraFiles)));
 
         if ($input->getOption('dry-run')) {
             foreach ($finder as $file) {
                 $io->writeln('  '.$file->getRelativePathname());
+            }
+            foreach ($extraFiles as $path) {
+                $io->writeln('  '.basename($path));
             }
 
             return Command::SUCCESS;
@@ -117,6 +141,29 @@ class IndexCodebaseCommand extends Command
 
         $documents = [];
         $fileCount = 0;
+
+        // Index extra root-level files (e.g. README.md)
+        foreach ($extraFiles as $path) {
+            $content = file_get_contents($path) ?: '';
+            if (trim($content) === '') {
+                continue;
+            }
+            ++$fileCount;
+            $relativePath = basename($path);
+            foreach ($this->splitIntoChunks($content) as $i => $chunk) {
+                if (trim($chunk) === '') {
+                    continue;
+                }
+                $metadata = new Metadata();
+                $metadata->offsetSet(Metadata::KEY_SOURCE, $relativePath);
+                $metadata->setText($chunk);
+                $documents[] = new TextDocument(
+                    id: sprintf('%s::%d', $relativePath, $i),
+                    content: $chunk,
+                    metadata: $metadata,
+                );
+            }
+        }
 
         foreach ($finder as $file) {
             $content = $file->getContents();
