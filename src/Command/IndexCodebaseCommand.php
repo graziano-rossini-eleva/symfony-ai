@@ -144,7 +144,7 @@ class IndexCodebaseCommand extends Command
 
         // Index extra root-level files (e.g. README.md)
         foreach ($extraFiles as $path) {
-            $content = file_get_contents($path) ?: '';
+            $content = $this->sanitizeUtf8(file_get_contents($path) ?: '');
             if (trim($content) === '') {
                 continue;
             }
@@ -166,7 +166,7 @@ class IndexCodebaseCommand extends Command
         }
 
         foreach ($finder as $file) {
-            $content = $file->getContents();
+            $content = $this->sanitizeUtf8($file->getContents());
             if (trim($content) === '') {
                 continue;
             }
@@ -199,12 +199,26 @@ class IndexCodebaseCommand extends Command
         }
 
         $io->progressStart(count($documents));
-        $this->indexer->index($documents, ['chunk_size' => 10]);
+        // chunk_size=1 avoids AsyncResponse conflicts with Symfony's traceable HTTP client
+        $this->indexer->index($documents, ['chunk_size' => 1]);
         $io->progressFinish();
 
         $io->success(sprintf('Indexed %d files into %d chunks.', $fileCount, count($documents)));
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Strips invalid UTF-8 byte sequences from a string so it can be safely
+     * JSON-encoded and sent to the Ollama embedding API.
+     *
+     * @param string $content Raw file content, potentially containing non-UTF-8 bytes.
+     *
+     * @return string Content with invalid UTF-8 sequences removed.
+     */
+    private function sanitizeUtf8(string $content): string
+    {
+        return mb_convert_encoding($content, 'UTF-8', 'UTF-8');
     }
 
     /**
