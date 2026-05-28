@@ -28,7 +28,7 @@ php bin/phpunit
 php bin/phpunit tests/path/to/Test.php
 
 # Code Chat — RAG setup (run once after first clone)
-php bin/console ai:store:setup sqlite code
+php bin/console ai:store:setup ai.store.sqlite.code
 php bin/console app:index-codebase
 
 # Re-index after code changes

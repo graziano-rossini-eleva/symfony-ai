@@ -54,7 +54,7 @@ echo "✓ MySQL pronto."
 echo "→ Attendo che Ollama sia pronto..."
 ATTEMPTS=0
 MAX=40
-until $COMPOSE exec -T ollama curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; do
+until curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; do
   ATTEMPTS=$((ATTEMPTS + 1))
   if [ "$ATTEMPTS" -ge "$MAX" ]; then
     echo "✗ Ollama non risponde dopo ${MAX} tentativi. Controlla i log:"
@@ -68,7 +68,7 @@ echo ""
 echo "✓ Ollama pronto."
 
 # ── pull nomic-embed-text (skip se già presente) ───────────────────────────────
-if ! $COMPOSE exec -T ollama ollama list 2>/dev/null | grep -q "nomic-embed-text"; then
+if ! curl -sf http://localhost:11434/api/tags 2>/dev/null | grep -q "nomic-embed-text"; then
   echo "→ Download modello nomic-embed-text (~274MB, solo prima volta)..."
   $COMPOSE exec -T ollama ollama pull nomic-embed-text
   echo "✓ Modello scaricato."
@@ -79,7 +79,7 @@ fi
 # ── vector store setup (skip se tabella già esiste) ───────────────────────────
 if [ ! -f "$PROJECT_ROOT/var/code_store.db" ]; then
   echo "→ Setup vector store SQLite..."
-  php "$PROJECT_ROOT/bin/console" ai:store:setup sqlite code
+  php "$PROJECT_ROOT/bin/console" ai:store:setup ai.store.sqlite.code
   echo "→ Prima indicizzazione del codebase..."
   php "$PROJECT_ROOT/bin/console" app:index-codebase
   echo "✓ Codebase indicizzato."

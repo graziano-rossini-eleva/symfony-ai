@@ -188,7 +188,7 @@ docker compose -f docker/docker-compose.yml up -d ollama
 docker exec symfonyai_ollama ollama pull nomic-embed-text
 
 # 3. Create the SQLite vector store table
-php bin/console ai:store:setup sqlite code
+php bin/console ai:store:setup ai.store.sqlite.code
 
 # 4. Index the project files
 php bin/console app:index-codebase

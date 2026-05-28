@@ -198,7 +198,7 @@ php bin/console app:index-codebase --truncate
 **Limiti:**
 - Domanda: max 2000 caratteri.
 - Chunk recuperati per query: max 8.
-- Il vector store deve essere inizializzato prima dell'uso (`ai:store:setup sqlite code`).
+- Il vector store deve essere inizializzato prima dell'uso (`ai:store:setup ai.store.sqlite.code`).
 
 **Route:**
 
@@ -564,7 +564,7 @@ php bin/console doctrine:fixtures:load
 php bin/console app:index-codebase --truncate
 
 # Setup manuale vector store (solo prima volta, se non si usa start.sh)
-php bin/console ai:store:setup sqlite code
+php bin/console ai:store:setup ai.store.sqlite.code
 php bin/console app:index-codebase
 ```
 
