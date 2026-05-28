@@ -13,20 +13,17 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\Finder\Finder;
 
 /**
- * Scans a curated subset of the project files, splits them into overlapping
- * chunks, and stores each chunk as a vector document in the SQLite code store.
+ * Indexes a small, curated set of documentation files into the SQLite vector
+ * store that powers the Code Chat RAG pipeline.
  *
- * Only the directories listed in SCAN_DIRS (src/, doc/, templates/, translations/)
- * and the files listed in EXTRA_FILES (README.md) are indexed. Generated,
- * vendor and configuration files are intentionally excluded to keep the index
- * focused and reduce noise in RAG results.
+ * Only the three files listed in INDEXED_FILES are processed: README.md,
+ * doc/project.md, and doc/db.md. Restricting the scope to high-signal
+ * documentation avoids UTF-8 encoding problems found in source/template files
+ * and keeps the number of Ollama embedding requests small.
  *
- * The resulting index powers the RAG pipeline used by Code Chat. Run this
- * command once after setup, and again with --truncate whenever the codebase
- * changes significantly.
+ * Run once after setup, and again with --truncate whenever the docs change.
  *
  * Usage:
  *   php bin/console app:index-codebase
@@ -51,23 +48,22 @@ class IndexCodebaseCommand extends Command
      */
     private const CHUNK_OVERLAP = 200;
 
-    /** File extensions included in the index. */
-    private const EXTENSIONS = ['php', 'twig', 'yaml', 'yml', 'md'];
-
     /**
-     * Directories scanned relative to the project root.
-     * Keeping the scope narrow reduces indexing time and avoids polluting the
-     * context with generated or third-party files.
+     * Only these specific files are indexed. Keeping the scope to the three
+     * most information-dense documentation files avoids UTF-8 encoding issues
+     * found in source/template files and reduces Ollama round-trips to a
+     * manageable number.
      */
-    private const SCAN_DIRS = ['src', 'doc', 'templates', 'translations'];
-
-    /** Individual files outside SCAN_DIRS that are always included. */
-    private const EXTRA_FILES = ['README.md'];
+    private const INDEXED_FILES = [
+        'README.md',
+        'doc/project.md',
+        'doc/db.md',
+    ];
 
     /**
      * @param IndexerInterface      $indexer    Document indexer wired to the `code` vectorizer and SQLite store.
      * @param ManagedStoreInterface $store      Managed SQLite store used to clear all chunks when --truncate is passed.
-     * @param string                $projectDir Kernel project directory used as the Finder root.
+     * @param string                $projectDir Kernel project directory prepended to each path in INDEXED_FILES.
      */
     public function __construct(
         #[Autowire('@ai.indexer.code')] private readonly IndexerInterface $indexer,
@@ -110,30 +106,16 @@ class IndexCodebaseCommand extends Command
             $io->comment('Store cleared.');
         }
 
-        $scanDirs = array_filter(
-            array_map(fn ($dir) => $this->projectDir.'/'.$dir, self::SCAN_DIRS),
-            'is_dir'
-        );
-
-        $finder = (new Finder())
-            ->files()
-            ->in($scanDirs)
-            ->name(array_map(fn ($ext) => '*.'.$ext, self::EXTENSIONS))
-            ->sortByName();
-
-        $extraFiles = array_filter(
-            array_map(fn ($f) => $this->projectDir.'/'.$f, self::EXTRA_FILES),
+        $files = array_filter(
+            array_map(fn ($f) => $this->projectDir.'/'.$f, self::INDEXED_FILES),
             'is_file'
         );
 
-        $io->comment(sprintf('Found %d files to process.', $finder->count() + count($extraFiles)));
+        $io->comment(sprintf('Found %d files to process.', count($files)));
 
         if ($input->getOption('dry-run')) {
-            foreach ($finder as $file) {
-                $io->writeln('  '.$file->getRelativePathname());
-            }
-            foreach ($extraFiles as $path) {
-                $io->writeln('  '.basename($path));
+            foreach ($files as $path) {
+                $io->writeln('  '.ltrim(str_replace($this->projectDir, '', $path), '/'));
             }
 
             return Command::SUCCESS;
@@ -142,40 +124,17 @@ class IndexCodebaseCommand extends Command
         $documents = [];
         $fileCount = 0;
 
-        // Index extra root-level files (e.g. README.md)
-        foreach ($extraFiles as $path) {
+        foreach ($files as $path) {
             $content = $this->sanitizeUtf8(file_get_contents($path) ?: '');
             if (trim($content) === '') {
                 continue;
             }
+
             ++$fileCount;
-            $relativePath = basename($path);
+            $relativePath = ltrim(str_replace($this->projectDir, '', $path), '/');
+
             foreach ($this->splitIntoChunks($content) as $i => $chunk) {
-                if (trim($chunk) === '') {
-                    continue;
-                }
-                $metadata = new Metadata();
-                $metadata->offsetSet(Metadata::KEY_SOURCE, $relativePath);
-                $metadata->setText($chunk);
-                $documents[] = new TextDocument(
-                    id: sprintf('%s::%d', $relativePath, $i),
-                    content: $chunk,
-                    metadata: $metadata,
-                );
-            }
-        }
-
-        foreach ($finder as $file) {
-            $content = $this->sanitizeUtf8($file->getContents());
-            if (trim($content) === '') {
-                continue;
-            }
-
-            ++$fileCount;
-            $relativePath = $file->getRelativePathname();
-            $chunks = $this->splitIntoChunks($content);
-
-            foreach ($chunks as $i => $chunk) {
+                $chunk = $this->sanitizeUtf8($chunk);
                 if (trim($chunk) === '') {
                     continue;
                 }
@@ -212,13 +171,17 @@ class IndexCodebaseCommand extends Command
      * Strips invalid UTF-8 byte sequences from a string so it can be safely
      * JSON-encoded and sent to the Ollama embedding API.
      *
+     * Uses mb_scrub() (PHP 8.1+) which replaces ill-formed byte sequences with
+     * the Unicode replacement character and is the canonical way to sanitize
+     * UTF-8 before JSON serialization.
+     *
      * @param string $content Raw file content, potentially containing non-UTF-8 bytes.
      *
      * @return string Content with invalid UTF-8 sequences removed.
      */
     private function sanitizeUtf8(string $content): string
     {
-        return mb_convert_encoding($content, 'UTF-8', 'UTF-8');
+        return mb_scrub($content, 'UTF-8');
     }
 
     /**
