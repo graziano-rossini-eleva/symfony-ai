@@ -10,7 +10,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - PHP 8.2+ / Symfony 7.4
 - Symfony AI Bundle (`symfony/ai-bundle`) with Anthropic platform bridge
+- Symfony AI Store (`symfony/ai-store`, `symfony/ai-sqlite-store`) — RAG pipeline
+- Symfony AI Ollama Platform (`symfony/ai-ollama-platform`) — local embeddings
 - Claude Sonnet 4 model (`Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4`)
+- Ollama (`nomic-embed-text`) running in Docker for embedding generation
 - Symfony UX Turbo (Hotwire) for reactive UI
 - Twig templates
 - Italian translations (`translations/messages.it.yaml`)
@@ -23,6 +26,18 @@ composer install
 php bin/console cache:clear
 php bin/phpunit
 php bin/phpunit tests/path/to/Test.php
+
+# Code Chat — RAG setup (run once after first clone)
+php bin/console ai:store:setup sqlite code
+php bin/console app:index-codebase
+
+# Re-index after code changes
+php bin/console app:index-codebase --truncate
+
+# Start/stop all services (MySQL + Ollama + Symfony)
+./cmd/start.sh
+./cmd/start.sh --stop
+./cmd/start.sh --index   # re-index without restarting
 ```
 
 ## Architecture
@@ -36,27 +51,44 @@ src/
 ├── Controller/
 │   ├── HomeController.php          # Feature selection landing page (/)
 │   ├── DocChatController.php       # /doc-chat — upload + chat + email escalation
-│   ├── FileParserController.php    # /file-parser — placeholder
-│   └── SqlController.php           # /sql — placeholder
+│   ├── FileParserController.php    # /file-parser
+│   ├── SqlController.php           # /sql
+│   ├── AdvisorController.php       # /advisor
+│   ├── ReportController.php        # /report
+│   └── CodeChatController.php      # /code-chat — RAG chat on the codebase
 ├── Service/
-│   └── DocChat/
-│       ├── ChatService.php         # AI prompt, agent call, tag detection
-│       └── SupportEmailService.php # Email assembly, transcript, history sanitisation
+│   ├── DocChat/
+│   │   ├── ChatService.php
+│   │   └── SupportEmailService.php
+│   ├── FileParser/FileParserService.php
+│   ├── Sql/SqlService.php
+│   ├── Advisor/AdvisorService.php
+│   ├── Report/ReportService.php
+│   └── CodeChat/
+│       └── CodeChatService.php     # retrieve chunks → context → Claude
+├── Command/
+│   └── IndexCodebaseCommand.php    # app:index-codebase
 └── EventSubscriber/
     └── SecurityHeadersSubscriber.php
 templates/
 ├── home/index.html.twig
-├── doc_chat/upload.html.twig
-├── doc_chat/index.html.twig
-├── file_parser/index.html.twig
-├── sql/index.html.twig
-└── email/support_request.html.twig
+├── doc_chat/
+├── file_parser/
+├── sql/
+├── advisor/
+├── report/
+├── code_chat/index.html.twig
+└── email/
+config/packages/
+├── ai.yaml                         # agents + store + vectorizer + indexer + retriever
+└── ai_ollama_platform.yaml         # Ollama endpoint
 ```
 
 When adding a new feature, follow the same pattern: one controller, one `Service/<FeatureName>/` directory, one `templates/<feature_name>/` directory.
 
-## Routes (DocChat)
+## Routes
 
+### DocChat
 | Route | Method | Name |
 |---|---|---|
 | `/doc-chat` | GET | `doc_chat` |
@@ -65,18 +97,52 @@ When adding a new feature, follow the same pattern: one controller, one `Service
 | `/doc-chat/message` | POST | `doc_chat_message` |
 | `/doc-chat/send-email` | POST | `doc_chat_send_email` |
 
+### Code Chat
+| Route | Method | Name |
+|---|---|---|
+| `/code-chat` | GET | `code_chat` |
+| `/code-chat/message` | POST | `code_chat_message` |
+
 ## AI Integration
 
-Inject `Symfony\AI\Agent\AgentInterface` — autowiring handles it. Service classes in `src/Service/<Feature>/` own all AI logic (prompt, call, response parsing). Controllers only validate HTTP input and delegate.
+Inject `Symfony\AI\Agent\AgentInterface` — autowiring handles it. When multiple agents exist, use `#[Autowire('@ai.agent.<name>')]` to select the correct one. Same for `RetrieverInterface` and `IndexerInterface`.
 
 ```yaml
 # config/packages/ai.yaml
 ai:
     agent:
-        default:
+        default:          # Doc Chat, File Parser, SQL
             platform: 'ai.platform.anthropic'
-            model: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+            model:
+                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+        code_chat:        # Code Chat — RAG, no tools
+            platform: 'ai.platform.anthropic'
+            model:
+                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+
+    store:
+        sqlite:
+            code:
+                dsn: 'sqlite:///%kernel.project_dir%/var/code_store.db'
+                table_name: 'code_chunks'
+
+    vectorizer:
+        code:
+            platform: 'ai.platform.ollama'
+            model: 'nomic-embed-text'
+
+    indexer:
+        code:
+            vectorizer: 'ai.vectorizer.code'
+            store: 'ai.store.sqlite.code'
+
+    retriever:
+        code:
+            vectorizer: 'ai.vectorizer.code'
+            store: 'ai.store.sqlite.code'
 ```
+
+Ollama endpoint is in `config/packages/ai_ollama_platform.yaml` (`OLLAMA_URL` env var).
 
 ## Mandatory Workflows
 
@@ -176,4 +242,5 @@ Rules:
 | `SUPPORT_EMAIL` | Recipient for escalation emails |
 | `FROM_EMAIL` | Sender address for outgoing emails |
 | `MAILER_DSN` | Mailer transport (`null://null` in dev) |
-| `DATABASE_URL` | PostgreSQL DSN (not yet used) |
+| `DATABASE_URL` | MySQL DSN |
+| `OLLAMA_URL` | Ollama endpoint (`http://localhost:11434` via Docker) |

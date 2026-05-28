@@ -13,8 +13,12 @@
 - **PHP 8.2+** / **Symfony 7.4**
 - **Symfony AI Bundle** (`symfony/ai-bundle ^0.8`) con bridge Anthropic
 - **Symfony MCP Bundle** (`symfony/mcp-bundle ^0.9`) — server MCP per Claude Desktop
-- **Modello AI:** Claude Sonnet 4 (`Claude::SONNET_4`)
+- **Symfony AI Store** (`symfony/ai-store ^0.8`, `symfony/ai-sqlite-store ^0.8`) — RAG pipeline
+- **Symfony AI Ollama Platform** (`symfony/ai-ollama-platform ^0.8`) — embedding locali
+- **Modello AI:** Claude Sonnet 4 (`Claude::SONNET_4`) — via Anthropic API
+- **Embedding:** `nomic-embed-text` via Ollama (Docker, nessuna API key richiesta)
 - **Database:** MySQL 8 (Doctrine ORM + Migrations)
+- **Vector store:** SQLite (`var/code_store.db`)
 - **UI:** Twig + Symfony UX Turbo (Hotwire) + Asset Mapper
 - **Email:** Symfony Mailer
 - **Lingua predefinita:** Italiano (`it`)
@@ -24,7 +28,7 @@
 
 ## Funzionalità
 
-Il progetto espone cinque funzioni AI indipendenti, accessibili dalla home page (`/`).
+Il progetto espone sei funzioni AI indipendenti, accessibili dalla home page (`/`).
 
 ### 1. Doc Chat (`/doc-chat`)
 
@@ -166,7 +170,46 @@ Genera report completi scaricabili in formato Markdown, orchestrando tre tool in
 
 ---
 
-### 6. MCP Server (integrazione Claude Desktop)
+### 6. Code Chat (`/code-chat`)
+
+Permette di fare domande in linguaggio naturale sul codice sorgente del progetto. Usa una pipeline RAG (Retrieval-Augmented Generation) basata su `symfony/ai-store`: i file del progetto vengono indicizzati in un vector store SQLite tramite embedding generati localmente da Ollama. A ogni domanda, vengono recuperati i chunk più rilevanti tramite ricerca di similarità coseno e passati come contesto a Claude.
+
+**Flusso d'uso:**
+1. (Setup, una-tantum) `./cmd/start.sh` indicizza automaticamente il codebase.
+2. L'utente pone una domanda sul codice (es. "Come funziona il ChatService?").
+3. La domanda viene vettorizzata da `nomic-embed-text` (Ollama).
+4. Il retriever recupera i top-8 chunk più simili dal vector store SQLite.
+5. Claude risponde citando i file sorgente rilevanti.
+
+**Componenti coinvolti:**
+- `src/Command/IndexCodebaseCommand.php` — scansiona `src/`, `templates/`, `config/`, `doc/` e indicizza i chunk nel vector store
+- `src/Service/CodeChat/CodeChatService.php` — esegue retrieve + costruisce il context + chiama Claude
+- `src/Controller/CodeChatController.php` — route `/code-chat`
+- `config/packages/ai.yaml` — agent `code_chat`, store `sqlite.code`, vectorizer `code`, indexer `code`, retriever `code`
+- `config/packages/ai_ollama_platform.yaml` — endpoint Ollama
+
+**Re-indicizzazione dopo modifiche al codice:**
+```bash
+php bin/console app:index-codebase --truncate
+# oppure:
+./cmd/start.sh --index
+```
+
+**Limiti:**
+- Domanda: max 2000 caratteri.
+- Chunk recuperati per query: max 8.
+- Il vector store deve essere inizializzato prima dell'uso (`ai:store:setup sqlite code`).
+
+**Route:**
+
+| Metodo | URL | Nome | Scopo |
+|--------|-----|------|-------|
+| GET | `/code-chat` | `code_chat` | Interfaccia chat |
+| POST | `/code-chat/message` | `code_chat_message` | Risposta RAG (JSON) |
+
+---
+
+### 7. MCP Server (integrazione Claude Desktop)
 
 Il server MCP espone i tool della piattaforma a qualsiasi client compatibile con il [Model Context Protocol](https://modelcontextprotocol.io/) (Claude Desktop, Cursor, ecc.). Non è una funzione utente — è un'integrazione per sviluppatori/assistenti AI.
 
@@ -205,11 +248,12 @@ Dal browser aprire `GET /mcp-config` — scarica `claude_desktop_config.json` pr
 | **Agent Component** | `symfony/ai-agent` | ✓ | `AgentInterface`, tool calling, agentic loop multi-step |
 | **AI Bundle** | `symfony/ai-bundle` | ✓ | Integrazione Symfony: DI, autowiring agenti, `config/packages/ai.yaml` |
 | **MCP Bundle** | `symfony/mcp-bundle` | ✓ | Server MCP attivo — espone `execute_sql` e `calculate_statistics` a Claude Desktop via stdio e HTTP (`/_mcp`) |
+| **Store Component** | `symfony/ai-store` + `symfony/ai-sqlite-store` | ✓ | Vector store SQLite + indexer + retriever — pipeline RAG per Code Chat |
+| **Ollama Platform** | `symfony/ai-ollama-platform` | ✓ | Embedding locali via `nomic-embed-text` (Docker, nessuna API key) |
 | **Chat Component** | `symfony/ai-chat` | — | Non installato — la cronologia chat è gestita manualmente in sessione PHP |
-| **Store Component** | `symfony/ai-store` | — | Non installato — nessun vector database né pipeline RAG |
-| **Mate Component** | `symfony/ai-mate` | — | Non installato — `mcp-bundle` copre già l'integrazione con gli assistenti AI |
+| **Mate Component** | `symfony/ai-mate` | — | Non installato — serve per consumare MCP di server esterni; `mcp-bundle` copre il caso opposto |
 
-> Espansioni future possibili: RAG con Store Component, cronologia persistente con Chat Component.
+> `ai-mate` sarebbe utile se la tua app Symfony dovesse orchestrare tool esposti da server MCP esterni (es. GitHub, Jira). In questo progetto Symfony è il server MCP, non il client.
 
 ---
 
@@ -217,24 +261,27 @@ Dal browser aprire `GET /mcp-config` — scarica `claude_desktop_config.json` pr
 
 La tabella mostra quali macro-funzionalità del bundle sono esercitate da ciascuna feature del progetto.
 
-| Funzionalità del bundle | Doc Chat | File Parser | SQL Assistant | Advisor | Report |
-|-------------------------|:--------:|:-----------:|:-------------:|:-------:|:------:|
-| `AgentInterface` — chiamata singola | ✓ | ✓ | ✓ | ✓ | ✓ |
-| System prompt (`SystemMessage`) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Contenuto documento (`Document`) — input binario multimodale | | ✓ | | | |
-| Output strutturato — estrazione JSON da testo libero | | ✓ | | | |
-| Agentic loop con tool calling | | | | ✓ | ✓ |
-| Tool personalizzato (`AsTool` / `ToolInterface`) | | | | ✓ | ✓ |
-| Tool di retrieval (`ExecuteSqlTool`) | | | | ✓ | ✓ |
-| Tool di computation (`CalculateStatisticsTool`) | | | | | ✓ |
-| Tool di output / stato persistente (`SaveReportTool`) | | | | | ✓ |
-| Configurazione multi-agente (`config/packages/ai.yaml`) | `default` | `default` | `default` | `advisor` | `report` |
-| Retry con back-off su `RateLimitExceededException` | | | | ✓ | ✓ |
-| Schema DB iniettato nel system prompt | | | ✓ | ✓ | ✓ |
-| Iniezione data corrente nel system prompt (elimina tool round-trip) | | | | | ✓ |
-| Sanitizzazione prompt / delimitatori anti-injection | | ✓ | | | |
-| Escalation email con trascrizione AI | ✓ | | | | |
-| Download file via token casuale (out-of-webroot) | | | | | ✓ |
+| Funzionalità del bundle | Doc Chat | File Parser | SQL Assistant | Advisor | Report | Code Chat |
+|-------------------------|:--------:|:-----------:|:-------------:|:-------:|:------:|:---------:|
+| `AgentInterface` — chiamata singola | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| System prompt (`SystemMessage`) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Contenuto documento (`Document`) — input binario multimodale | | ✓ | | | | |
+| Output strutturato — estrazione JSON da testo libero | | ✓ | | | | |
+| Agentic loop con tool calling | | | | ✓ | ✓ | |
+| Tool personalizzato (`AsTool` / `ToolInterface`) | | | | ✓ | ✓ | |
+| Tool di retrieval (`ExecuteSqlTool`) | | | | ✓ | ✓ | |
+| Tool di computation (`CalculateStatisticsTool`) | | | | | ✓ | |
+| Tool di output / stato persistente (`SaveReportTool`) | | | | | ✓ | |
+| Configurazione multi-agente (`config/packages/ai.yaml`) | `default` | `default` | `default` | `advisor` | `report` | `code_chat` |
+| Retry con back-off su `RateLimitExceededException` | | | | ✓ | ✓ | |
+| Schema DB iniettato nel system prompt | | | ✓ | ✓ | ✓ | |
+| Iniezione data corrente nel system prompt (elimina tool round-trip) | | | | | ✓ | |
+| Sanitizzazione prompt / delimitatori anti-injection | | ✓ | | | | |
+| Escalation email con trascrizione AI | ✓ | | | | | |
+| Download file via token casuale (out-of-webroot) | | | | | ✓ | |
+| RAG — vector store + indexer + retriever | | | | | | ✓ |
+| Embedding locali (Ollama, nessuna API key) | | | | | | ✓ |
+| Contesto codebase nel system prompt (chunk rilevanti) | | | | | | ✓ |
 
 ### Pattern AI per livello di complessità
 
@@ -244,6 +291,7 @@ La tabella mostra quali macro-funzionalità del bundle sono esercitate da ciascu
 | **Intermedio** | Agente a singola chiamata + input multimodale + normalizzazione output | File Parser |
 | **Avanzato** | Agentic loop, 1 tool, schema nel system prompt, retry | Advisor |
 | **Esperto** | Agentic loop, 3 tool con responsabilità distinte (retrieval / computation / output), stato persistente nel tool, pipeline sequenziale | Report |
+| **RAG** | Vector store, embedding locali, retrieval semantico, contesto dinamico nel prompt | Code Chat |
 
 ---
 
@@ -261,7 +309,8 @@ src/
 │   ├── FileParserController.php
 │   ├── SqlController.php
 │   ├── AdvisorController.php
-│   └── ReportController.php
+│   ├── ReportController.php
+│   └── CodeChatController.php      # /code-chat — chat RAG sul codebase
 ├── Service/
 │   ├── DocChat/
 │   │   ├── ChatService.php
@@ -272,8 +321,12 @@ src/
 │   │   └── SqlService.php
 │   ├── Advisor/
 │   │   └── AdvisorService.php
-│   └── Report/
-│       └── ReportService.php
+│   ├── Report/
+│   │   └── ReportService.php
+│   └── CodeChat/
+│       └── CodeChatService.php     # retrieve chunks → context → Claude
+├── Command/
+│   └── IndexCodebaseCommand.php    # app:index-codebase
 ├── Tool/
 │   ├── ExecuteSqlTool.php          # #[AsTool] + #[McpTool] — advisor, report, MCP
 │   ├── CalculateStatisticsTool.php # #[AsTool] + #[McpTool] — report, MCP
@@ -284,10 +337,11 @@ src/
     └── SecurityHeadersSubscriber.php
 config/
 ├── packages/
-│   ├── ai.yaml                     # Agenti AI (default, advisor, report)
+│   ├── ai.yaml                     # Agenti + store + vectorizer + indexer + retriever
+│   ├── ai_ollama_platform.yaml     # Endpoint Ollama (OLLAMA_URL)
 │   └── mcp.yaml                    # Server MCP (stdio + HTTP, schema DB nelle instructions)
 ├── routes/
-│   └── mcp.yaml                    # Route loader MCP (endpoint /_mcp)
+│   └── mcp.yaml
 templates/
 ├── home/
 ├── doc_chat/
@@ -295,21 +349,25 @@ templates/
 ├── sql/
 ├── advisor/
 ├── report/
+├── code_chat/
 └── email/
 doc/
 ├── db.md           ← schema completo ~2600 token (usato da SqlService)
 └── db_compact.md   ← schema compatto ~210 token (usato da Advisor, Report e MCP instructions)
+var/
+└── code_store.db   ← vector store SQLite (auto-creato, escluso da git)
 ```
 
 ### Agenti AI configurati
 
-Sono configurati tre agenti in `config/packages/ai.yaml`:
+Sono configurati quattro agenti in `config/packages/ai.yaml`:
 
 | Agente | Servizio | Tool | Note |
 |--------|----------|------|------|
 | `default` | DocChat, FileParser, Sql | Nessuno | Agente base, singola chiamata |
 | `advisor` | AdvisorService | `ExecuteSqlTool` | Multi-step, domande analitiche |
 | `report` | ReportService | `ExecuteSqlTool`, `CalculateStatisticsTool`, `SaveReportTool` | Multi-step, genera file scaricabile |
+| `code_chat` | CodeChatService | Nessuno | RAG — risponde sul codebase con contesto dinamico |
 
 ```yaml
 # config/packages/ai.yaml
@@ -317,28 +375,39 @@ ai:
   agent:
     default:
       platform: 'ai.platform.anthropic'
-      model:
-        name: Claude::SONNET_4
-        options:
-          max_tokens: 8096
+      model: { name: Claude::SONNET_4, options: { max_tokens: 8096 } }
     advisor:
       platform: 'ai.platform.anthropic'
-      model:
-        name: Claude::SONNET_4
-        options:
-          max_tokens: 8096
-      tools:
-        - App\Tool\ExecuteSqlTool
+      model: { name: Claude::SONNET_4, options: { max_tokens: 8096 } }
+      tools: [App\Tool\ExecuteSqlTool]
     report:
       platform: 'ai.platform.anthropic'
-      model:
-        name: Claude::SONNET_4
-        options:
-          max_tokens: 8096
-      tools:
-        - App\Tool\ExecuteSqlTool
-        - App\Tool\CalculateStatisticsTool
-        - App\Tool\SaveReportTool
+      model: { name: Claude::SONNET_4, options: { max_tokens: 8096 } }
+      tools: [App\Tool\ExecuteSqlTool, App\Tool\CalculateStatisticsTool, App\Tool\SaveReportTool]
+    code_chat:
+      platform: 'ai.platform.anthropic'
+      model: { name: Claude::SONNET_4, options: { max_tokens: 4096 } }
+
+  store:
+    sqlite:
+      code:
+        dsn: 'sqlite:///%kernel.project_dir%/var/code_store.db'
+        table_name: 'code_chunks'
+
+  vectorizer:
+    code:
+      platform: 'ai.platform.ollama'
+      model: 'nomic-embed-text'
+
+  indexer:
+    code:
+      vectorizer: 'ai.vectorizer.code'
+      store: 'ai.store.sqlite.code'
+
+  retriever:
+    code:
+      vectorizer: 'ai.vectorizer.code'
+      store: 'ai.store.sqlite.code'
 ```
 
 ### Tool disponibili
@@ -419,6 +488,19 @@ Inietta data corrente e schema compatto nel system prompt, poi delega all'agente
 
 **Metodo principale:** `generate(string $prompt): string`
 
+### CodeChatService
+
+**File:** `src/Service/CodeChat/CodeChatService.php`
+
+Implementa la pipeline RAG per Code Chat. Usa `#[Autowire('@ai.retriever.code')]` per selezionare il retriever specifico tra più retriever configurati. Il testo di ogni chunk è archiviato in `Metadata::KEY_TEXT` al momento dell'indicizzazione e letto con `getText()` al momento del retrieval.
+
+**Metodo principale:** `ask(string $question): array{reply: string}`
+
+Pipeline interna:
+1. `$retriever->retrieve($question, ['maxItems' => 8])` — vettorizza la query con Ollama e recupera i chunk simili
+2. Costruisce il contesto come lista di blocchi `### path/to/file.php\n```\ncodice\n````
+3. Inietta il contesto nel system prompt e chiama l'agente `code_chat`
+
 ---
 
 ## Sicurezza
@@ -459,7 +541,8 @@ Inietta data corrente e schema compatto nel system prompt, poi delega all'agente
 | `SUPPORT_EMAIL` | Destinatario email escalation | `support@example.com` |
 | `FROM_EMAIL` | Mittente email in uscita | `noreply@example.com` |
 | `MAILER_DSN` | Trasporto mailer | `null://null` in dev |
-| `DATABASE_URL` | DSN MySQL | `mysql://app:app@127.0.0.1:3306/symfony_ai` |
+| `DATABASE_URL` | DSN MySQL | `mysql://app:app@127.0.0.1:3306/symfonyai` |
+| `OLLAMA_URL` | Endpoint Ollama per gli embedding | `http://localhost:11434` |
 
 ### Comandi principali
 
@@ -468,7 +551,21 @@ composer install
 php bin/console cache:clear
 php bin/phpunit
 php bin/console doctrine:fixtures:load
+
+# Avvio completo (MySQL + Ollama + Symfony + indicizzazione automatica)
 ./cmd/start.sh
+
+# Ferma tutto
+./cmd/start.sh --stop
+
+# Re-indicizza il codebase dopo modifiche al codice
+./cmd/start.sh --index
+# oppure direttamente:
+php bin/console app:index-codebase --truncate
+
+# Setup manuale vector store (solo prima volta, se non si usa start.sh)
+php bin/console ai:store:setup sqlite code
+php bin/console app:index-codebase
 ```
 
 ---

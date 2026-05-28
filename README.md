@@ -13,13 +13,18 @@ Each feature exercises a different capability of the bundle through a concrete u
 | **SQL Assistant** | `/sql` | Describe in plain language what data you want; the AI generates a safe read-only SQL SELECT and runs it against the database, showing paginated results. |
 | **Advisor AI** | `/advisor` | Ask complex questions about the platform data. A dedicated agent with multi-step tool calling autonomously runs as many SQL queries as needed and synthesises a natural-language answer. |
 | **Report Analitico** | `/report` | Generate downloadable Markdown reports through a 3-tool agentic pipeline: SQL retrieval → precise statistics computation → file output with download token. |
+| **Code Chat** | `/code-chat` | Ask questions about this project's source code in natural language. Uses RAG (Retrieval-Augmented Generation) via `symfony/ai-store` + a local Ollama embedding model to retrieve relevant code chunks and answer with Claude. |
 
 ## Tech Stack
 
 - **PHP** 8.2+ / **Symfony** 7.4
 - **Symfony AI Bundle** (`symfony/ai-bundle ^0.8`) with Anthropic platform bridge
 - **Symfony MCP Bundle** (`symfony/mcp-bundle ^0.9`) — MCP server for Claude Desktop integration
-- **Claude Sonnet 4** as the AI model
+- **Symfony AI Store** (`symfony/ai-store ^0.8`) — vector store, indexer, retriever for RAG
+- **Symfony AI SQLite Store** (`symfony/ai-sqlite-store ^0.8`) — SQLite vector store backend
+- **Symfony AI Ollama Platform** (`symfony/ai-ollama-platform ^0.8`) — local embedding model bridge
+- **Claude Sonnet 4** as the AI model (Anthropic)
+- **Ollama** (`nomic-embed-text`) for local embeddings — runs in Docker, no API key required
 - **MySQL 8** via Docker
 - **Doctrine ORM** + **Doctrine Migrations** + **DoctrineFixturesBundle**
 - **Symfony UX Turbo** (Hotwire) for reactive UI
@@ -35,55 +40,51 @@ src/
 │   ├── FileParserController.php    # File Parser: upload + extract
 │   ├── SqlController.php           # SQL Assistant: prompt → SQL → paginated table
 │   ├── AdvisorController.php       # Advisor AI: question → multi-step agent → answer
-│   └── ReportController.php        # Report: prompt → 3-tool pipeline → download
+│   ├── ReportController.php        # Report: prompt → 3-tool pipeline → download
+│   └── CodeChatController.php      # Code Chat: question → RAG → Claude answer
 ├── Service/
 │   ├── DocChat/
-│   │   ├── ChatService.php         # AI prompt, agent call, tag detection
-│   │   └── SupportEmailService.php # Email assembly, transcript, history sanitisation
+│   │   ├── ChatService.php
+│   │   └── SupportEmailService.php
 │   ├── FileParser/
-│   │   └── FileParserService.php   # PDF read, prompt injection mitigation, JSON normalisation
+│   │   └── FileParserService.php
 │   ├── Sql/
-│   │   └── SqlService.php          # Schema loading, SQL generation via AI, safe DBAL execution
+│   │   └── SqlService.php
 │   ├── Advisor/
-│   │   └── AdvisorService.php      # Builds MessageBag, calls advisor agent, returns answer
-│   └── Report/
-│       └── ReportService.php       # Injects date + schema, calls report agent, handles retry
+│   │   └── AdvisorService.php
+│   ├── Report/
+│   │   └── ReportService.php
+│   └── CodeChat/
+│       └── CodeChatService.php     # retrieve chunks → build context → call Claude
+├── Command/
+│   └── IndexCodebaseCommand.php    # app:index-codebase — scans files, chunks, vectorises
 ├── Tool/
-│   ├── ExecuteSqlTool.php          # #[AsTool] + #[McpTool] — validates and runs SQL SELECT
-│   ├── CalculateStatisticsTool.php # #[AsTool] + #[McpTool] — precise descriptive statistics
-│   ├── SaveReportTool.php          # #[AsTool] — saves Markdown to var/reports/, stores token
-│   └── DatabaseQueryTool.php       # unused — double-AI pattern, kept for reference
+│   ├── ExecuteSqlTool.php          # #[AsTool] + #[McpTool]
+│   ├── CalculateStatisticsTool.php # #[AsTool] + #[McpTool]
+│   ├── SaveReportTool.php          # #[AsTool]
+│   └── DatabaseQueryTool.php       # unused — kept for reference
 ├── DataFixtures/
-│   └── AppFixtures.php             # Seed data: 100+ records per table via FakerPHP
+│   └── AppFixtures.php
 └── EventSubscriber/
     ├── SecurityHeadersSubscriber.php
-    └── AiExceptionSubscriber.php   # Converts RateLimitExceededException to JSON 429
+    └── AiExceptionSubscriber.php
 config/
 ├── packages/
-│   ├── ai.yaml                     # Agent definitions (default, advisor, report)
-│   └── mcp.yaml                    # MCP server config (stdio + HTTP, schema in instructions)
+│   ├── ai.yaml                     # Agents + store + vectorizer + indexer + retriever
+│   ├── ai_ollama_platform.yaml     # Ollama endpoint (OLLAMA_URL)
+│   └── mcp.yaml
 doc/
-├── db.md                           # Full database schema (~2600 tokens, used by SqlService)
-└── db_compact.md                   # Compact schema (~210 tokens, used by Advisor + Report + MCP)
-templates/
-├── home/index.html.twig
-├── doc_chat/
-│   ├── upload.html.twig
-│   └── index.html.twig
-├── file_parser/index.html.twig
-├── sql/index.html.twig
-├── advisor/index.html.twig
-├── report/index.html.twig
-└── email/support_request.html.twig
-translations/
-└── messages.it.yaml
+├── db.md
+└── db_compact.md
+var/
+└── code_store.db                   # SQLite vector store (auto-created on first run)
 ```
 
 ## Requirements
 
 - PHP 8.2+
 - Composer
-- Docker + Docker Compose (for the MySQL database)
+- Docker + Docker Compose (MySQL + Ollama)
 - An [Anthropic API key](https://console.anthropic.com/)
 
 ## Installation
@@ -111,42 +112,37 @@ SUPPORT_EMAIL=support@yourdomain.com
 FROM_EMAIL=noreply@yourdomain.com
 ```
 
-The `DATABASE_URL` is already configured for the Docker MySQL container and does not need to be changed for local development:
+The `DATABASE_URL` and `OLLAMA_URL` are already configured for the Docker containers and do not need to be changed for local development.
 
-```dotenv
-DATABASE_URL="mysql://app:app@127.0.0.1:3306/symfonyai?serverVersion=8.0.32&charset=utf8mb4"
-```
-
-### 3. Start database and dev server
-
-A convenience script handles Docker and the Symfony server in one command:
+### 3. Start all services and the dev server
 
 ```bash
 chmod +x cmd/start.sh
 ./cmd/start.sh
 ```
 
-The script starts the MySQL 8 Docker container, waits until MySQL is ready, then starts the Symfony dev server in background:
+The script:
+1. Starts MySQL + Ollama Docker containers
+2. Waits for MySQL and Ollama to be ready
+3. Downloads `nomic-embed-text` model on first run (~274 MB, cached in Docker volume)
+4. Creates the SQLite vector store and indexes the codebase on first run
+5. Starts the Symfony dev server in background
 
 ```
 ✓ Tutto avviato.
-  App:   https://localhost:8000
-  MySQL: 127.0.0.1:3306  (user: app / pass: app)
+  App:    https://localhost:8000
+  MySQL:  127.0.0.1:3306  (user: app / pass: app)
+  Ollama: http://localhost:11434
 
-  Per fermare tutto: ./cmd/start.sh --stop
+  Per fermare tutto:          ./cmd/start.sh --stop
+  Per re-indicizzare:         ./cmd/start.sh --index
 ```
 
-To stop everything: `./cmd/start.sh --stop`
-
-MySQL credentials:
-
-| Parameter | Value |
+| Command | Effect |
 |---|---|
-| Host | `127.0.0.1:3306` |
-| Database | `symfonyai` |
-| User | `app` |
-| Password | `app` |
-| Root password | `root` |
+| `./cmd/start.sh` | Start everything |
+| `./cmd/start.sh --stop` | Stop Symfony + Docker |
+| `./cmd/start.sh --index` | Re-index codebase after code changes |
 
 ### 4. Run migrations
 
@@ -163,73 +159,100 @@ php bin/console doctrine:migrations:migrate
 php bin/console doctrine:fixtures:load
 ```
 
-Confirm the prompt (`yes`). This purges the database and inserts:
-
-| Table | Records |
-|---|---|
-| `users` | 100 (20 instructors + 80 students) |
-| `categories` | 100 |
-| `courses` | 100 |
-| `lessons` | 500 (5 per course) |
-| `enrollments` | 100 |
-| `lesson_progress` | 200 |
-| `reviews` | 100 |
-
-All data is randomly generated via [FakerPHP](https://fakerphp.org/).
-
-Open [https://localhost:8000](https://localhost:8000).
-
 ---
 
 ## Database management
 
 | Task | Command |
 |---|---|
-| Start MySQL container | `docker compose -f docker/docker-compose.yml up -d` |
-| Stop MySQL container | `docker compose -f docker/docker-compose.yml down` |
-| Destroy volume (full reset) | `docker compose -f docker/docker-compose.yml down -v` |
+| Start containers | `docker compose -f docker/docker-compose.yml up -d` |
+| Stop containers | `docker compose -f docker/docker-compose.yml down` |
+| Destroy volumes (full reset) | `docker compose -f docker/docker-compose.yml down -v` |
 | Run migrations | `php bin/console doctrine:migrations:migrate` |
 | Reload fixtures | `php bin/console doctrine:fixtures:load` |
 | Open MySQL shell | `docker exec -it symfonyai_mysql mysql -u app -papp symfonyai` |
 
 ---
 
+## Code Chat — RAG Setup
+
+The Code Chat feature uses `symfony/ai-store` to index the project source files and retrieve relevant chunks at query time.
+
+### Manual setup (if not using `cmd/start.sh`)
+
+```bash
+# 1. Start Ollama
+docker compose -f docker/docker-compose.yml up -d ollama
+
+# 2. Download the embedding model (once, ~274 MB)
+docker exec symfonyai_ollama ollama pull nomic-embed-text
+
+# 3. Create the SQLite vector store table
+php bin/console ai:store:setup sqlite code
+
+# 4. Index the project files
+php bin/console app:index-codebase
+
+# 5. Re-index after code changes
+php bin/console app:index-codebase --truncate
+```
+
+### How it works
+
+```
+user question
+    → Ollama (nomic-embed-text): vectorise query
+    → SQLite vector store: cosine similarity search → top 8 chunks
+    → Claude (code_chat agent): system prompt with chunks as context
+    → answer citing source files
+```
+
+The SQLite database lives at `var/code_store.db`. It is excluded from git.
+
+---
+
 ## AI Configuration
 
-Model and agents are configured in `config/packages/ai.yaml`:
+Agents, store, vectorizer, indexer and retriever are configured in `config/packages/ai.yaml`:
 
 ```yaml
 ai:
     agent:
-        default:                          # used by Doc Chat, File Parser, SQL Assistant
-            platform: 'ai.platform.anthropic'
-            model:
-                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
-                options:
-                    max_tokens: 8096
-        advisor:                          # used by Advisor AI — multi-step tool calling
-            platform: 'ai.platform.anthropic'
-            model:
-                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
-                options:
-                    max_tokens: 8096
-            tools:
-                - App\Tool\ExecuteSqlTool
-        report:                           # used by Report — 3-tool orchestration pipeline
-            platform: 'ai.platform.anthropic'
-            model:
-                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
-                options:
-                    max_tokens: 8096
-            tools:
-                - App\Tool\ExecuteSqlTool
-                - App\Tool\CalculateStatisticsTool
-                - App\Tool\SaveReportTool
+        default:          # Doc Chat, File Parser, SQL Assistant
+        advisor:          # Advisor AI — multi-step tool calling
+        report:           # Report — 3-tool orchestration pipeline
+        code_chat:        # Code Chat — RAG, no tools
+
+    store:
+        sqlite:
+            code:
+                dsn: 'sqlite:///%kernel.project_dir%/var/code_store.db'
+                table_name: 'code_chunks'
+
+    vectorizer:
+        code:
+            platform: 'ai.platform.ollama'
+            model: 'nomic-embed-text'
+
+    indexer:
+        code:
+            vectorizer: 'ai.vectorizer.code'
+            store: 'ai.store.sqlite.code'
+
+    retriever:
+        code:
+            vectorizer: 'ai.vectorizer.code'
+            store: 'ai.store.sqlite.code'
 ```
 
-`max_tokens` is set to **8096** explicitly because the bundle default (1000) is too low for structured JSON responses over multi-page PDFs — the model output gets truncated mid-JSON.
+Ollama endpoint is configured separately in `config/packages/ai_ollama_platform.yaml`:
 
-All Tool classes have `autoconfigure: false` in `services.yaml` to prevent `#[AsTool]` from registering them globally on every agent. Each tool is wired explicitly to its agent in `ai.yaml`. `ExecuteSqlTool` and `CalculateStatisticsTool` are additionally tagged `mcp.tool` for MCP server exposure.
+```yaml
+ai:
+    platform:
+        ollama:
+            endpoint: '%env(OLLAMA_URL)%'
+```
 
 ---
 
@@ -244,8 +267,6 @@ The project exposes an MCP server via `symfony/mcp-bundle`, allowing Claude Desk
 | `execute_sql` | Runs a read-only SQL SELECT on the platform database |
 | `calculate_statistics` | Computes precise descriptive statistics on a JSON array of numbers |
 
-The database schema is embedded in the MCP server `instructions` (`config/packages/mcp.yaml`), so the client never needs to query `information_schema`.
-
 ### Transports
 
 | Transport | Endpoint |
@@ -255,7 +276,7 @@ The database schema is embedded in the MCP server `instructions` (`config/packag
 
 ### Claude Desktop setup
 
-Download the pre-filled config file from the home page (`GET /mcp-config`) and copy it to:
+Download the pre-filled config file from the home page and copy it to:
 
 ```
 ~/Library/Application Support/Claude/claude_desktop_config.json   # macOS
