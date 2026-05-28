@@ -195,6 +195,18 @@ php bin/console app:index-codebase --truncate
 ./cmd/start.sh --index
 ```
 
+**Scope dell'indice:**
+
+Solo un sottoinsieme mirato del progetto viene indicizzato — non l'intera codebase. Le cartelle incluse sono `src/`, `doc/`, `templates/`, `translations/` e il file `README.md`.
+
+Motivazione: indicizzare tutta la repo (inclusi `config/`, `vendor/`, `var/`, `public/`) aggiunge rumore ai risultati RAG senza migliorare la qualità delle risposte. Le configurazioni YAML e i file generati non contengono logica applicativa utile al contesto; i vendor sono codice di terze parti non rilevante per domande sul progetto. Mantenere lo scope stretto riduce anche i tempi di indicizzazione e il numero di round-trip verso Ollama.
+
+**Dettagli implementativi del command:**
+
+- `chunk_size=1` — i documenti vengono inviati a Ollama uno alla volta invece che in batch. Questo evita un conflitto noto con il `TraceableResponse` del client HTTP di Symfony in modalità dev, che causa un errore `AsyncResponse already consumed` quando più richieste parallele condividono la stessa istanza decorata.
+- `sanitizeUtf8()` — ogni file viene passato attraverso `mb_convert_encoding(..., 'UTF-8', 'UTF-8')` prima del chunking. Alcuni file (es. template Twig con caratteri speciali o file YAML con encoding misto) contengono byte non validi che causano un errore `Malformed UTF-8 characters` al momento della serializzazione JSON verso l'API Ollama.
+- `drop()` + `setup()` per il truncate — `ManagedStoreInterface` non espone un metodo `clear()`; il re-index completo richiede di eliminare la tabella (`drop()`) e ricrearla (`setup()`).
+
 **Limiti:**
 - Domanda: max 2000 caratteri.
 - Chunk recuperati per query: max 8.
