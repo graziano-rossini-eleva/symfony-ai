@@ -12,10 +12,24 @@ use Symfony\AI\Store\Document\Metadata;
 use Symfony\AI\Store\RetrieverInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
+/**
+ * Implements the RAG (Retrieval-Augmented Generation) pipeline for Code Chat.
+ *
+ * At query time, the user question is vectorised by Ollama (nomic-embed-text),
+ * the top matching code chunks are retrieved from the SQLite vector store, and
+ * Claude is called with a system prompt that includes those chunks as context.
+ * The text of each chunk is stored in Metadata::KEY_TEXT at indexing time and
+ * read back with Metadata::getText() at retrieval time.
+ */
 class CodeChatService
 {
+    /** Maximum number of code chunks injected into the system prompt per query. */
     private const MAX_CHUNKS = 8;
 
+    /**
+     * @param AgentInterface     $agent     Claude agent wired to the `code_chat` configuration (no tools).
+     * @param RetrieverInterface $retriever Vector retriever wired to the SQLite `code` store and Ollama vectorizer.
+     */
     public function __construct(
         #[Autowire('@ai.agent.code_chat')] private readonly AgentInterface $agent,
         #[Autowire('@ai.retriever.code')] private readonly RetrieverInterface $retriever,
@@ -23,9 +37,16 @@ class CodeChatService
     }
 
     /**
-     * @return array{reply: string}
+     * Answers a question about the project codebase using RAG.
      *
-     * @throws RateLimitExceededException
+     * Retrieves the most semantically similar code chunks from the vector store,
+     * injects them as context into the system prompt, and delegates to the Claude agent.
+     *
+     * @param string $question The user's natural-language question about the codebase.
+     *
+     * @return array{reply: string} The agent's answer.
+     *
+     * @throws RateLimitExceededException When the upstream Anthropic API rate limit is exceeded.
      */
     public function ask(string $question): array
     {
@@ -58,6 +79,17 @@ PROMPT;
         return ['reply' => trim((string) $result->getContent())];
     }
 
+    /**
+     * Builds a Markdown-formatted context string from retrieved vector documents.
+     *
+     * Each document is rendered as a fenced code block preceded by its source file path.
+     * Documents whose stored text is empty are silently skipped. Returns a fallback
+     * message when no relevant chunks are found (e.g. the store has not been indexed yet).
+     *
+     * @param iterable<\Symfony\AI\Store\Document\VectorDocument> $documents Retrieved documents from the vector store.
+     *
+     * @return string Formatted context ready to be embedded in the system prompt.
+     */
     private function buildContext(iterable $documents): string
     {
         $parts = [];

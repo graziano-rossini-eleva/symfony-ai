@@ -15,17 +15,48 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Finder\Finder;
 
+/**
+ * Scans the project source files, splits them into overlapping chunks, and
+ * stores each chunk as a vector document in the SQLite code store.
+ *
+ * The resulting index powers the RAG pipeline used by Code Chat. Run this
+ * command once after setup, and again with --truncate whenever the codebase
+ * changes significantly.
+ *
+ * Usage:
+ *   php bin/console app:index-codebase
+ *   php bin/console app:index-codebase --truncate   # re-index from scratch
+ *   php bin/console app:index-codebase --dry-run    # preview files without indexing
+ */
 #[AsCommand(
     name: 'app:index-codebase',
     description: 'Indexes project source files into the code vector store for RAG-based Code Chat.',
 )]
 class IndexCodebaseCommand extends Command
 {
+    /**
+     * Maximum characters per chunk. Keeps each chunk well within the
+     * nomic-embed-text token limit (~8192 tokens).
+     */
     private const CHUNK_SIZE = 4000;
+
+    /**
+     * Character overlap between consecutive chunks to avoid losing context
+     * at chunk boundaries.
+     */
     private const CHUNK_OVERLAP = 200;
+
+    /** File extensions included in the index. */
     private const EXTENSIONS = ['php', 'twig', 'yaml', 'yml', 'md'];
+
+    /** Top-level directories excluded from the scan. */
     private const EXCLUDE_DIRS = ['vendor', 'var', 'node_modules', '.git', 'public'];
 
+    /**
+     * @param IndexerInterface      $indexer    Document indexer wired to the `code` vectorizer and SQLite store.
+     * @param ManagedStoreInterface $store      Managed SQLite store used to clear all chunks when --truncate is passed.
+     * @param string                $projectDir Kernel project directory used as the Finder root.
+     */
     public function __construct(
         #[Autowire('@ai.indexer.code')] private readonly IndexerInterface $indexer,
         #[Autowire('@ai.store.sqlite.code')] private readonly ManagedStoreInterface $store,
@@ -34,6 +65,9 @@ class IndexCodebaseCommand extends Command
         parent::__construct();
     }
 
+    /**
+     * Registers the --truncate and --dry-run options.
+     */
     protected function configure(): void
     {
         $this
@@ -41,13 +75,26 @@ class IndexCodebaseCommand extends Command
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'List files without indexing');
     }
 
+    /**
+     * Scans the project files, builds TextDocument chunks, and indexes them.
+     *
+     * Each chunk stores the raw text in Metadata::KEY_TEXT so that CodeChatService
+     * can read it back via VectorDocument::getMetadata()->getText() at query time.
+     * The source file path is stored in Metadata::KEY_SOURCE.
+     *
+     * @param InputInterface  $input  Console input carrying the --truncate and --dry-run flags.
+     * @param OutputInterface $output Console output used via SymfonyStyle for progress display.
+     *
+     * @return int Command::SUCCESS on success, Command::FAILURE on unrecoverable error.
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         $io->title('Codebase Indexer');
 
         if ($input->getOption('truncate')) {
-            $this->store->clear();
+            $this->store->drop();
+            $this->store->setup();
             $io->comment('Store cleared.');
         }
 
@@ -109,7 +156,17 @@ class IndexCodebaseCommand extends Command
         return Command::SUCCESS;
     }
 
-    /** @return string[] */
+    /**
+     * Splits a file's content into overlapping chunks of at most CHUNK_SIZE characters.
+     *
+     * Attempts to break at newline boundaries to avoid splitting mid-line. The last
+     * chunk may be shorter than CHUNK_SIZE. A CHUNK_OVERLAP overlap is kept between
+     * consecutive chunks to preserve cross-boundary context.
+     *
+     * @param string $content Raw file content to split.
+     *
+     * @return string[] Array of text chunks, each at most CHUNK_SIZE characters long.
+     */
     private function splitIntoChunks(string $content): array
     {
         if (strlen($content) <= self::CHUNK_SIZE) {
