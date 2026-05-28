@@ -112,6 +112,19 @@ sql.examples.6: 'Le 20 recensioni più recenti con nome utente, titolo corso e v
 sql.examples.7: 'Corsi con progresso medio degli iscritti superiore al 50%'
 sql.examples.8: 'Categorie con più corsi pubblicati, ordinate per numero di corsi'
 
+# Code Chat — RAG sul codebase del progetto (symfony/ai-store + Ollama nomic-embed-text)
+code_chat.page_title: 'Code Chat — Interroga il Codebase'
+code_chat.title: 'Code Chat'
+code_chat.subtitle: 'Risposte basate sul codice sorgente del progetto (RAG)'
+code_chat.welcome: "Ciao! Puoi farmi domande sul codebase del progetto: architettura, controller, service, configurazioni. Ricorda di indicizzare prima con `php bin/console app:index-codebase`."
+code_chat.input.placeholder: 'Chiedi qualcosa sul codice...'
+code_chat.send: Invia
+code_chat.typing: 'Ricerco nel codebase...'
+code_chat.error.unknown: 'Errore sconosciuto. Riprova.'
+code_chat.error.connection: 'Errore di connessione. Riprova.'
+home.feature.code_chat.title: 'Code Chat'
+home.feature.code_chat.description: "Fai domande sul codebase del progetto in linguaggio naturale: l'AI recupera i frammenti rilevanti tramite RAG e risponde basandosi sul codice sorgente reale."
+
 # Report Analitico — four-tool orchestration: context → retrieval → computation → output
 report.page_title: 'Report Analitico'
 report.title: 'Report Analitico'

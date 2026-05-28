@@ -32,3 +32,31 @@ ai:
                 - App\Tool\ExecuteSqlTool
                 - App\Tool\CalculateStatisticsTool
                 - App\Tool\SaveReportTool
+
+        code_chat:
+            platform: 'ai.platform.anthropic'
+            model:
+                name: !php/const Symfony\AI\Platform\Bridge\Anthropic\Claude::SONNET_4
+                options:
+                    max_tokens: 4096
+
+    store:
+        sqlite:
+            code:
+                dsn: 'sqlite:///%kernel.project_dir%/var/code_store.db'
+                table_name: 'code_chunks'
+
+    vectorizer:
+        code:
+            platform: 'ai.platform.ollama'
+            model: 'nomic-embed-text'
+
+    indexer:
+        code:
+            vectorizer: 'ai.vectorizer.code'
+            store: 'ai.store.sqlite.code'
+
+    retriever:
+        code:
+            vectorizer: 'ai.vectorizer.code'
+            store: 'ai.store.sqlite.code'
